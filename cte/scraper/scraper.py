@@ -43,3 +43,17 @@ def get_repo_diffs(repo : str, sha : str, headers : dict):
     #response = scrape_url(url, headers)
     response = requests.get(url, headers=headers).text
     return response
+
+def get_all_repo_commits(repo: str, headers : dict, tokens : list | str, max_page=10):
+    '''scrape all commit messages and corresponding shas for a given repo'''
+    if type(tokens) == str:
+        tokens = [tokens]
+
+    #make use of all provided keys for scraping
+    for token in tokens:
+        headers = {
+            'Authorization': f'token {token}',
+            'Accept': 'application/vnd.github.v3.diff'
+            }
+        page = 1
+        response = [["start"],["start"]]
