@@ -1,6 +1,7 @@
 # Data files and folders
 raw_data/
-
+ethan's_stuff/
+cli_playground/
 # Byte-compiled / optimized / DLL files
 __pycache__/
 *.py[cod]
