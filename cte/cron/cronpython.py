@@ -5,14 +5,13 @@ import os
 
 backend_directory = "/home/ben/code/OmarKarame/Commit-To-Excellence-Backend"
 
-#TOKEN = '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'
-TOKEN = "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"
+TOKEN = "temp"
 
 HEADERS = {
     'Authorization': f'token {TOKEN}',
     'Accept': 'application/vnd.github.v3.diff'
 }
-variables = pd.read_csv(backend_directory + "/cte/cron/variables.csv")
+variables = pd.read_json(backend_directory + "/cte/cron/variables.csv")
 
 # go through all repos provided in variables
 for repo in variables[variables["not_finished"]]["repo"]:
@@ -22,7 +21,7 @@ for repo in variables[variables["not_finished"]]["repo"]:
         page = int(variables.query(f"repo == '{repo}'")["current_page"])
         #print(repo,page)
 
-        save_file = backend_directory + "/raw_data" + f"/{repo.split('/')[0]}_page_{page}.csv"
+        save_file = backend_directory + "/raw_data" + f"/{repo.split('/')[0]}_page_{page}.json"
         print(save_file)
 
         # check a page already exists
@@ -32,10 +31,10 @@ for repo in variables[variables["not_finished"]]["repo"]:
             repo_commits["diff"] = "error"
             if type(repo_commits) == int:
                 raise Exception("could not get commit df")
-            repo_commits.to_csv(save_file, index = False)
+            repo_commits.to_json(save_file,)
 
         else:
-            repo_commits = pd.read_csv(save_file)
+            repo_commits = pd.read_json(save_file)
 
         #check if there are repo_commits for a given page
         if len(repo_commits) == 0:
@@ -45,7 +44,7 @@ for repo in variables[variables["not_finished"]]["repo"]:
 
         #print(repo)
         repo_commits["diff"] = repo_commits.apply(lambda x : get_repo_diffs(repo, x["sha"], HEADERS) if x["diff"] == "error" else x["diff"], axis = 1)
-        repo_commits.to_csv(save_file, index = False, mode='w+')
+        repo_commits.to_json(save_file)
 
         if len(repo_commits.query("diff == 'error'")) == 0:
             #if table is fully scraped update page
