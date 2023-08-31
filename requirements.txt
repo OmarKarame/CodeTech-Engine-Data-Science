@@ -22,6 +22,8 @@ python-dotenv
 
 # model requirements
 transformers
+click
+gitpython
 datasets
 evaluate
 transformers[torch]
