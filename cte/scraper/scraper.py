@@ -8,7 +8,8 @@ def scrape_url(url : str, headers : dict, params : dict = {}) -> dict | int:
     if response.status_code == 200:
         return response.json()
     else:
-        return response.status_code
+        #return response.status_code
+        return "error"
 
 def get_repo_commits(repo : str, headers : dict, page : str = 1) -> list | int:
     """scrape all the commits from a repo for a given page number, if response is error returns it"""
@@ -21,7 +22,7 @@ def get_repo_commits(repo : str, headers : dict, page : str = 1) -> list | int:
 
     #returns a list of 30 commits
     response = scrape_url(repo_url, headers, params)
-    print(type(response))
+    #print(type(response))
 
     #check that scrape returned a dict and not error code
     if type(response) == list:
@@ -31,7 +32,8 @@ def get_repo_commits(repo : str, headers : dict, page : str = 1) -> list | int:
         #get commit sha from each commit in the response
         response_commit_shas = [commit["sha"] for commit in response]
 
-        return [response_commit_messages, response_commit_shas]
+        combined_response = [response_commit_messages, response_commit_shas]
+        return pd.DataFrame(np.transpose(np.array(combined_response)), columns = ["message", "sha"])
 
     else:
         #returns the response error
@@ -41,8 +43,11 @@ def get_repo_diffs(repo : str, sha : str, headers : dict):
     """scrape the git commit diff for a specified commit sha, if response is error returns it"""
     url = f'https://api.github.com/repos/{repo}/commits/{sha}'
     #response = scrape_url(url, headers)
-    response = requests.get(url, headers=headers).text
-    return response
+    response = requests.get(url, headers=headers)#.text
+    if response.status_code == 200:
+        return response.text
+    else:
+        return "error"
 
 def get_all_repo_commits(repo: str, headers : dict, tokens : list | str, max_page=10):
     '''scrape all commit messages and corresponding shas for a given repo'''
