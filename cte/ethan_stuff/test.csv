@@ -1,0 +1,4025 @@
+,diff
+0,"diff --git a/runtests.py b/runtests.py
+index dafe959bcb12..9892279a1422 100755
+--- a/runtests.py
++++ b/runtests.py
+@@ -50,6 +50,7 @@
+ 
+ import sys
+ import os
++import errno
+ # the following multiprocessing import is necessary to prevent tests that use
+ # multiprocessing from hanging on >= Python3.8 (macOS) using pytest. Just the
+ # import is enough...
+"
+1,"diff --git a/scipy/spatial/tests/test_distance.py b/scipy/spatial/tests/test_distance.py
+index 50ebfc5ca95e..f9636fe651f8 100644
+--- a/scipy/spatial/tests/test_distance.py
++++ b/scipy/spatial/tests/test_distance.py
+@@ -218,16 +218,6 @@ def _weight_masked(arrays, weights, axis):
+     return weights
+ 
+ 
+-def within_tol(a, b, tol):
+-    return np.abs(a - b).max() < tol
+-
+-
+-def _assert_within_tol(a, b, atol=0, rtol=0, verbose_=False):
+-    if verbose_:
+-        print(np.abs(a - b).max())
+-    assert_allclose(a, b, rtol=rtol, atol=atol)
+-
+-
+ def _rand_split(arrays, weights, axis, split_per, seed=None):
+     # inverse operation for stats.collapse_weights
+     weights = np.array(weights, dtype=np.float64)  # modified inplace; need a copy
+@@ -439,12 +429,12 @@ def _my_metric(x, y, arg, kwarg=1, kwarg2=2):
+                               arg=1.1, kwarg2=3.3), 5.4)
+ 
+     def test_cdist_euclidean_random_unicode(self):
+-        eps = 1e-07
++        eps = 1e-15
+         X1 = eo['cdist-X1']
+         X2 = eo['cdist-X2']
+         Y1 = wcdist_no_const(X1, X2, 'euclidean')
+         Y2 = wcdist_no_const(X1, X2, 'test_euclidean')
+-        _assert_within_tol(Y1, Y2, eps, verbose > 2)
++        assert_allclose(Y1, Y2, rtol=eps, verbose=verbose > 2)
+ 
+     @pytest.mark.parametrize(""p"", [0.1, 0.25, 1.0, 1.23,
+                                    2.0, 3.8, 4.6, np.inf])
+@@ -454,10 +444,10 @@ def test_cdist_minkowski_random(self, p):
+         X2 = eo['cdist-X2']
+         Y1 = wcdist_no_const(X1, X2, 'minkowski', p=p)
+         Y2 = wcdist_no_const(X1, X2, 'test_minkowski', p=p)
+-        _assert_within_tol(Y1, Y2, atol=0, rtol=eps, verbose_=verbose > 2)
++        assert_allclose(Y1, Y2, atol=0, rtol=eps, verbose=verbose > 2)
+ 
+     def test_cdist_cosine_random(self):
+-        eps = 1e-07
++        eps = 1e-14
+         X1 = eo['cdist-X1']
+         X2 = eo['cdist-X2']
+         Y1 = wcdist(X1, X2, 'cosine')
+@@ -468,7 +458,7 @@ def norms(X):
+ 
+         Y2 = 1 - np.dot((X1 / norms(X1)), (X2 / norms(X2)).T)
+ 
+-        _assert_within_tol(Y1, Y2, eps, verbose > 2)
++        assert_allclose(Y1, Y2, rtol=eps, verbose=verbose > 2)
+ 
+     def test_cdist_mahalanobis(self):
+         # 1-dimensional observations
+@@ -516,8 +506,8 @@ def _check_calling_conventions(self, X1, X2, metric, eps=1e-07, **kwargs):
+             assert_raises(e_cls, cdist, X1, X2, metric=eval(metric), **kwargs)
+             assert_raises(e_cls, cdist, X1, X2, metric=""test_"" + metric, **kwargs)
+         else:
+-            _assert_within_tol(y1, y2, rtol=eps, verbose_=verbose > 2)
+-            _assert_within_tol(y1, y3, rtol=eps, verbose_=verbose > 2)
++            assert_allclose(y1, y2, rtol=eps, verbose=verbose > 2)
++            assert_allclose(y1, y3, rtol=eps, verbose=verbose > 2)
+ 
+     def test_cdist_calling_conventions(self):
+         # Ensures that specifying the metric with a str or scipy function
+@@ -576,11 +566,11 @@ def test_cdist_dtype_equivalence(self):
+                 else:
+                     for new_type in test[1]:
+                         y2 = cdist(new_type(X1), new_type(X2), metric=metric)
+-                        _assert_within_tol(y1, y2, eps, verbose > 2)
++                        assert_allclose(y1, y2, rtol=eps, verbose=verbose > 2)
+ 
+     def test_cdist_out(self):
+         # Test that out parameter works properly
+-        eps = 1e-07
++        eps = 1e-15
+         X1 = eo['cdist-X1']
+         X2 = eo['cdist-X2']
+         out_r, out_c = X1.shape[0], X2.shape[0]
+@@ -593,7 +583,7 @@ def test_cdist_out(self):
+             Y1 = cdist(X1, X2, metric, **kwargs)
+             Y2 = cdist(X1, X2, metric, out=out1, **kwargs)
+             # test that output is numerically equivalent
+-            _assert_within_tol(Y1, Y2, eps, verbose > 2)
++            assert_allclose(Y1, Y2, rtol=eps, verbose=verbose > 2)
+             # test that Y_test1 and out1 are the same object
+             assert_(Y2 is out1)
+             # test for incorrect shape
+@@ -617,7 +607,7 @@ def test_cdist_out(self):
+     def test_striding(self):
+         # test that striding is handled correct with calls to
+         # _copy_array_if_base_present
+-        eps = 1e-07
++        eps = 1e-15
+         X1 = eo['cdist-X1'][::2, ::2]
+         X2 = eo['cdist-X2'][::2, ::2]
+         X1_copy = X1.copy()
+@@ -639,7 +629,7 @@ def test_striding(self):
+             Y1 = cdist(X1, X2, metric, **kwargs)
+             Y2 = cdist(X1_copy, X2_copy, metric, **kwargs)
+             # test that output is numerically equivalent
+-            _assert_within_tol(Y1, Y2, eps, verbose > 2)
++            assert_allclose(Y1, Y2, rtol=eps, verbose=verbose > 2)
+ 
+     def test_cdist_refcount(self):
+         for metric in _METRICS_NAMES:
+@@ -711,151 +701,151 @@ def test_pdist_euclidean_random(self):
+         X = eo['pdist-double-inp']
+         Y_right = eo['pdist-euclidean']
+         Y_test1 = wpdist_no_const(X, 'euclidean')
+-        _assert_within_tol(Y_test1, Y_right, eps)
++        assert_allclose(Y_test1, Y_right, rtol=eps)
+ 
+     def test_pdist_euclidean_random_u(self):
+         eps = 1e-07
+         X = eo['pdist-double-inp']
+         Y_right = eo['pdist-euclidean']
+         Y_test1 = wpdist_no_const(X, 'euclidean')
+-        _assert_within_tol(Y_test1, Y_right, eps)
++        assert_allclose(Y_test1, Y_right, rtol=eps)
+ 
+     def test_pdist_euclidean_random_float32(self):
+         eps = 1e-07
+         X = np.float32(eo['pdist-double-inp'])
+         Y_right = eo['pdist-euclidean']
+         Y_test1 = wpdist_no_const(X, 'euclidean')
+-        _assert_within_tol(Y_test1, Y_right, eps)
++        assert_allclose(Y_test1, Y_right, rtol=eps)
+ 
+     def test_pdist_euclidean_random_nonC(self):
+         eps = 1e-07
+         X = eo['pdist-double-inp']
+         Y_right = eo['pdist-euclidean']
+         Y_test2 = wpdist_no_const(X, 'test_euclidean')
+-        _assert_within_tol(Y_test2, Y_right, eps)
++        assert_allclose(Y_test2, Y_right, rtol=eps)
+ 
+     @pytest.mark.slow
+     def test_pdist_euclidean_iris_double(self):
+-        eps = 1e-07
++        eps = 1e-7
+         X = eo['iris']
+         Y_right = eo['pdist-euclidean-iris']
+         Y_test1 = wpdist_no_const(X, 'euclidean')
+-        _assert_within_tol(Y_test1, Y_right, eps)
++        assert_allclose(Y_test1, Y_right, rtol=eps)
+ 
+     @pytest.mark.slow
+     def test_pdist_euclidean_iris_float32(self):
+-        eps = 1e-06
++        eps = 1e-5
+         X = np.float32(eo['iris'])
+         Y_right = eo['pdist-euclidean-iris']
+         Y_test1 = wpdist_no_const(X, 'euclidean')
+-        _assert_within_tol(Y_test1, Y_right, eps, verbose > 2)
++        assert_allclose(Y_test1, Y_right, rtol=eps, verbose=verbose > 2)
+ 
+     @pytest.mark.slow
+     def test_pdist_euclidean_iris_nonC(self):
+         # Test pdist(X, 'test_euclidean') [the non-C implementation] on the
+         # Iris data set.
+-        eps = 1e-07
++        eps = 1e-7
+         X = eo['iris']
+         Y_right = eo['pdist-euclidean-iris']
+         Y_test2 = wpdist_no_const(X, 'test_euclidean')
+-        _assert_within_tol(Y_test2, Y_right, eps)
++        assert_allclose(Y_test2, Y_right, rtol=eps)
+ 
+     def test_pdist_seuclidean_random(self):
+-        eps = 1e-05
++        eps = 1e-7
+         X = eo['pdist-double-inp']
+         Y_right = eo['pdist-seuclidean']
+         Y_test1 = pdist(X, 'seuclidean')
+-        _assert_within_tol(Y_test1, Y_right, eps)
++        assert_allclose(Y_test1, Y_right, rtol=eps)
+ 
+     def test_pdist_seuclidean_random_float32(self):
+-        eps = 1e-05
++        eps = 1e-7
+         X = np.float32(eo['pdist-double-inp'])
+         Y_right = eo['pdist-seuclidean']
+         Y_test1 = pdist(X, 'seuclidean')
+-        _assert_within_tol(Y_test1, Y_right, eps)
++        assert_allclose(Y_test1, Y_right, rtol=eps)
+ 
+         # Check no error is raise when V has float32 dtype (#11171).
+         V = np.var(X, axis=0, ddof=1)
+         Y_test2 = pdist(X, 'seuclidean', V=V)
+-        _assert_within_tol(Y_test2, Y_right, eps)
++        assert_allclose(Y_test2, Y_right, rtol=eps)
+ 
+     def test_pdist_seuclidean_random_nonC(self):
+         # Test pdist(X, 'test_sqeuclidean') [the non-C implementation]
+-        eps = 1e-05
++        eps = 1e-07
+         X = eo['pdist-double-inp']
+         Y_right = eo['pdist-seuclidean']
+         Y_test2 = pdist(X, 'test_seuclidean')
+-        _assert_within_tol(Y_test2, Y_right, eps)
++        assert_allclose(Y_test2, Y_right, rtol=eps)
+ 
+     def test_pdist_seuclidean_iris(self):
+-        eps = 1e-05
++        eps = 1e-7
+         X = eo['iris']
+         Y_right = eo['pdist-seuclidean-iris']
+         Y_test1 = pdist(X, 'seuclidean')
+-        _assert_within_tol(Y_test1, Y_right, eps)
++        assert_allclose(Y_test1, Y_right, rtol=eps)
+ 
+     def test_pdist_seuclidean_iris_float32(self):
+         # Tests pdist(X, 'seuclidean') on the Iris data set (float32).
+-        eps = 1e-05
++        eps = 1e-5
+         X = np.float32(eo['iris'])
+         Y_right = eo['pdist-seuclidean-iris']
+         Y_test1 = pdist(X, 'seuclidean')
+-        _assert_within_tol(Y_test1, Y_right, eps)
++        assert_allclose(Y_test1, Y_right, rtol=eps)
+ 
+     def test_pdist_seuclidean_iris_nonC(self):
+         # Test pdist(X, 'test_seuclidean') [the non-C implementation] on the
+         # Iris data set.
+-        eps = 1e-05
++        eps = 1e-7
+         X = eo['iris']
+         Y_right = eo['pdist-seuclidean-iris']
+         Y_test2 = pdist(X, 'test_seuclidean')
+-        _assert_within_tol(Y_test2, Y_right, eps)
++        assert_allclose(Y_test2, Y_right, rtol=eps)
+ 
+     def test_pdist_cosine_random(self):
+-        eps = 1e-08
++        eps = 1e-7
+         X = eo['pdist-double-inp']
+         Y_right = eo['pdist-cosine']
+         Y_test1 = wpdist(X, 'cosine')
+-        _assert_within_tol(Y_test1, Y_right, eps)
++        assert_allclose(Y_test1, Y_right, rtol=eps)
+ 
+     def test_pdist_cosine_random_float32(self):
+-        eps = 1e-08
++        eps = 1e-7
+         X = np.float32(eo['pdist-double-inp'])
+         Y_right = eo['pdist-cosine']
+         Y_test1 = wpdist(X, 'cosine')
+-        _assert_within_tol(Y_test1, Y_right, eps)
++        assert_allclose(Y_test1, Y_right, rtol=eps)
+ 
+     def test_pdist_cosine_random_nonC(self):
+         # Test pdist(X, 'test_cosine') [the non-C implementation]
+-        eps = 1e-08
++        eps = 1e-7
+         X = eo['pdist-double-inp']
+         Y_right = eo['pdist-cosine']
+         Y_test2 = wpdist(X, 'test_cosine')
+-        _assert_within_tol(Y_test2, Y_right, eps)
++        assert_allclose(Y_test2, Y_right, rtol=eps)
+ 
+     @pytest.mark.slow
+     def test_pdist_cosine_iris(self):
+-        eps = 1e-08
++        eps = 1e-05
+         X = eo['iris']
+         Y_right = eo['pdist-cosine-iris']
+         Y_test1 = wpdist(X, 'cosine')
+-        _assert_within_tol(Y_test1, Y_right, eps)
++        assert_allclose(Y_test1, Y_right, atol=eps)
+ 
+     @pytest.mark.slow
+     def test_pdist_cosine_iris_float32(self):
+-        eps = 1e-07
++        eps = 1e-05
+         X = np.float32(eo['iris'])
+         Y_right = eo['pdist-cosine-iris']
+         Y_test1 = wpdist(X, 'cosine')
+-        _assert_within_tol(Y_test1, Y_right, eps, verbose > 2)
++        assert_allclose(Y_test1, Y_right, atol=eps, verbose=verbose > 2)
+ 
+     @pytest.mark.slow
+     def test_pdist_cosine_iris_nonC(self):
+-        eps = 1e-08
++        eps = 1e-05
+         X = eo['iris']
+         Y_right = eo['pdist-cosine-iris']
+         Y_test2 = wpdist(X, 'test_cosine')
+-        _assert_within_tol(Y_test2, Y_right, eps)
++        assert_allclose(Y_test2, Y_right, atol=eps)
+ 
+     def test_pdist_cosine_bounds(self):
+         # Test adapted from @joernhees's example at gh-5208: case where
+@@ -867,25 +857,25 @@ def test_pdist_cosine_bounds(self):
+                 msg='cosine distance should be non-negative')
+ 
+     def test_pdist_cityblock_random(self):
+-        eps = 1e-06
++        eps = 1e-7
+         X = eo['pdist-double-inp']
+         Y_right = eo['pdist-cityblock']
+         Y_test1 = wpdist_no_const(X, 'cityblock')
+-        _assert_within_tol(Y_test1, Y_right, eps)
++        assert_allclose(Y_test1, Y_right, rtol=eps)
+ 
+     def test_pdist_cityblock_random_float32(self):
+-        eps = 1e-06
++        eps = 1e-7
+         X = np.float32(eo['pdist-double-inp'])
+         Y_right = eo['pdist-cityblock']
+         Y_test1 = wpdist_no_const(X, 'cityblock')
+-        _assert_within_tol(Y_test1, Y_right, eps)
++        assert_allclose(Y_test1, Y_right, rtol=eps)
+ 
+     def test_pdist_cityblock_random_nonC(self):
+-        eps = 1e-06
++        eps = 1e-7
+         X = eo['pdist-double-inp']
+         Y_right = eo['pdist-cityblock']
+         Y_test2 = wpdist_no_const(X, 'test_cityblock')
+-        _assert_within_tol(Y_test2, Y_right, eps)
++        assert_allclose(Y_test2, Y_right, rtol=eps)
+ 
+     @pytest.mark.slow
+     def test_pdist_cityblock_iris(self):
+@@ -893,15 +883,15 @@ def test_pdist_cityblock_iris(self):
+         X = eo['iris']
+         Y_right = eo['pdist-cityblock-iris']
+         Y_test1 = wpdist_no_const(X, 'cityblock')
+-        _assert_within_tol(Y_test1, Y_right, eps)
++        assert_allclose(Y_test1, Y_right, rtol=eps)
+ 
+     @pytest.mark.slow
+     def test_pdist_cityblock_iris_float32(self):
+-        eps = 1e-06
++        eps = 1e-5
+         X = np.float32(eo['iris'])
+         Y_right = eo['pdist-cityblock-iris']
+         Y_test1 = wpdist_no_const(X, 'cityblock')
+-        _assert_within_tol(Y_test1, Y_right, eps, verbose > 2)
++        assert_allclose(Y_test1, Y_right, rtol=eps, verbose=verbose > 2)
+ 
+     @pytest.mark.slow
+     def test_pdist_cityblock_iris_nonC(self):
+@@ -911,52 +901,52 @@ def test_pdist_cityblock_iris_nonC(self):
+         X = eo['iris']
+         Y_right = eo['pdist-cityblock-iris']
+         Y_test2 = wpdist_no_const(X, 'test_cityblock')
+-        _assert_within_tol(Y_test2, Y_right, eps)
++        assert_allclose(Y_test2, Y_right, rtol=eps)
+ 
+     def test_pdist_correlation_random(self):
+-        eps = 1e-07
++        eps = 1e-7
+         X = eo['pdist-double-inp']
+         Y_right = eo['pdist-correlation']
+         Y_test1 = wpdist(X, 'correlation')
+-        _assert_within_tol(Y_test1, Y_right, eps)
++        assert_allclose(Y_test1, Y_right, rtol=eps)
+ 
+     def test_pdist_correlation_random_float32(self):
+-        eps = 1e-07
++        eps = 1e-7
+         X = np.float32(eo['pdist-double-inp'])
+         Y_right = eo['pdist-correlation']
+         Y_test1 = wpdist(X, 'correlation')
+-        _assert_within_tol(Y_test1, Y_right, eps)
++        assert_allclose(Y_test1, Y_right, rtol=eps)
+ 
+     def test_pdist_correlation_random_nonC(self):
+-        eps = 1e-07
++        eps = 1e-7
+         X = eo['pdist-double-inp']
+         Y_right = eo['pdist-correlation']
+         Y_test2 = wpdist(X, 'test_correlation')
+-        _assert_within_tol(Y_test2, Y_right, eps)
++        assert_allclose(Y_test2, Y_right, rtol=eps)
+ 
+     @pytest.mark.slow
+     def test_pdist_correlation_iris(self):
+-        eps = 1e-08
++        eps = 1e-7
+         X = eo['iris']
+         Y_right = eo['pdist-correlation-iris']
+         Y_test1 = wpdist(X, 'correlation')
+-        _assert_within_tol(Y_test1, Y_right, eps)
++        assert_allclose(Y_test1, Y_right, rtol=eps)
+ 
+     @pytest.mark.slow
+     def test_pdist_correlation_iris_float32(self):
+-        eps = 1e-07
++        eps = 1e-7
+         X = eo['iris']
+         Y_right = np.float32(eo['pdist-correlation-iris'])
+         Y_test1 = wpdist(X, 'correlation')
+-        _assert_within_tol(Y_test1, Y_right, eps, verbose > 2)
++        assert_allclose(Y_test1, Y_right, rtol=eps, verbose=verbose > 2)
+ 
+     @pytest.mark.slow
+     def test_pdist_correlation_iris_nonC(self):
+-        eps = 1e-08
++        eps = 1e-7
+         X = eo['iris']
+         Y_right = eo['pdist-correlation-iris']
+         Y_test2 = wpdist(X, 'test_correlation')
+-        _assert_within_tol(Y_test2, Y_right, eps)
++        assert_allclose(Y_test2, Y_right, rtol=eps)
+ 
+     @pytest.mark.parametrize(""p"", [0.1, 0.25, 1.0, 2.0, 3.2, np.inf])
+     def test_pdist_minkowski_random_p(self, p):
+@@ -964,76 +954,76 @@ def test_pdist_minkowski_random_p(self, p):
+         X = eo['pdist-double-inp']
+         Y1 = wpdist_no_const(X, 'minkowski', p=p)
+         Y2 = wpdist_no_const(X, 'test_minkowski', p=p)
+-        _assert_within_tol(Y1, Y2, atol=0, rtol=eps)
++        assert_allclose(Y1, Y2, atol=0, rtol=eps)
+ 
+     def test_pdist_minkowski_random(self):
+-        eps = 1e-05
++        eps = 1e-7
+         X = eo['pdist-double-inp']
+         Y_right = eo['pdist-minkowski-3.2']
+         Y_test1 = wpdist_no_const(X, 'minkowski', p=3.2)
+-        _assert_within_tol(Y_test1, Y_right, eps)
++        assert_allclose(Y_test1, Y_right, rtol=eps)
+ 
+     def test_pdist_minkowski_random_float32(self):
+-        eps = 1e-05
++        eps = 1e-7
+         X = np.float32(eo['pdist-double-inp'])
+         Y_right = eo['pdist-minkowski-3.2']
+         Y_test1 = wpdist_no_const(X, 'minkowski', p=3.2)
+-        _assert_within_tol(Y_test1, Y_right, eps)
++        assert_allclose(Y_test1, Y_right, rtol=eps)
+ 
+     def test_pdist_minkowski_random_nonC(self):
+-        eps = 1e-05
++        eps = 1e-7
+         X = eo['pdist-double-inp']
+         Y_right = eo['pdist-minkowski-3.2']
+         Y_test2 = wpdist_no_const(X, 'test_minkowski', p=3.2)
+-        _assert_within_tol(Y_test2, Y_right, eps)
++        assert_allclose(Y_test2, Y_right, rtol=eps)
+ 
+     @pytest.mark.slow
+     def test_pdist_minkowski_3_2_iris(self):
+-        eps = 1e-07
++        eps = 1e-7
+         X = eo['iris']
+         Y_right = eo['pdist-minkowski-3.2-iris']
+         Y_test1 = wpdist_no_const(X, 'minkowski', p=3.2)
+-        _assert_within_tol(Y_test1, Y_right, eps)
++        assert_allclose(Y_test1, Y_right, rtol=eps)
+ 
+     @pytest.mark.slow
+     def test_pdist_minkowski_3_2_iris_float32(self):
+-        eps = 1e-06
++        eps = 1e-5
+         X = np.float32(eo['iris'])
+         Y_right = eo['pdist-minkowski-3.2-iris']
+         Y_test1 = wpdist_no_const(X, 'minkowski', p=3.2)
+-        _assert_within_tol(Y_test1, Y_right, eps)
++        assert_allclose(Y_test1, Y_right, rtol=eps)
+ 
+     @pytest.mark.slow
+     def test_pdist_minkowski_3_2_iris_nonC(self):
+-        eps = 1e-07
++        eps = 1e-7
+         X = eo['iris']
+         Y_right = eo['pdist-minkowski-3.2-iris']
+         Y_test2 = wpdist_no_const(X, 'test_minkowski', p=3.2)
+-        _assert_within_tol(Y_test2, Y_right, eps)
++        assert_allclose(Y_test2, Y_right, rtol=eps)
+ 
+     @pytest.mark.slow
+     def test_pdist_minkowski_5_8_iris(self):
+-        eps = 1e-07
++        eps = 1e-7
+         X = eo['iris']
+         Y_right = eo['pdist-minkowski-5.8-iris']
+         Y_test1 = wpdist_no_const(X, 'minkowski', p=5.8)
+-        _assert_within_tol(Y_test1, Y_right, eps)
++        assert_allclose(Y_test1, Y_right, rtol=eps)
+ 
+     @pytest.mark.slow
+     def test_pdist_minkowski_5_8_iris_float32(self):
+-        eps = 1e-06
++        eps = 1e-5
+         X = np.float32(eo['iris'])
+         Y_right = eo['pdist-minkowski-5.8-iris']
+         Y_test1 = wpdist_no_const(X, 'minkowski', p=5.8)
+-        _assert_within_tol(Y_test1, Y_right, eps, verbose > 2)
++        assert_allclose(Y_test1, Y_right, rtol=eps, verbose=verbose > 2)
+ 
+     @pytest.mark.slow
+     def test_pdist_minkowski_5_8_iris_nonC(self):
+-        eps = 1e-07
++        eps = 1e-7
+         X = eo['iris']
+         Y_right = eo['pdist-minkowski-5.8-iris']
+         Y_test2 = wpdist_no_const(X, 'test_minkowski', p=5.8)
+-        _assert_within_tol(Y_test2, Y_right, eps)
++        assert_allclose(Y_test2, Y_right, rtol=eps)
+ 
+     def test_pdist_mahalanobis(self):
+         # 1-dimensional observations
+@@ -1053,114 +1043,114 @@ def test_pdist_mahalanobis(self):
+                       wpdist, [[0, 1], [2, 3]], metric='mahalanobis')
+ 
+     def test_pdist_hamming_random(self):
+-        eps = 1e-07
++        eps = 1e-15
+         X = eo['pdist-boolean-inp']
+         Y_right = eo['pdist-hamming']
+         Y_test1 = wpdist(X, 'hamming')
+-        _assert_within_tol(Y_test1, Y_right, eps)
++        assert_allclose(Y_test1, Y_right, rtol=eps)
+ 
+     def test_pdist_hamming_random_float32(self):
+-        eps = 1e-07
++        eps = 1e-15
+         X = np.float32(eo['pdist-boolean-inp'])
+         Y_right = eo['pdist-hamming']
+         Y_test1 = wpdist(X, 'hamming')
+-        _assert_within_tol(Y_test1, Y_right, eps)
++        assert_allclose(Y_test1, Y_right, rtol=eps)
+ 
+     def test_pdist_hamming_random_nonC(self):
+-        eps = 1e-07
++        eps = 1e-15
+         X = eo['pdist-boolean-inp']
+         Y_right = eo['pdist-hamming']
+         Y_test2 = wpdist(X, 'test_hamming')
+-        _assert_within_tol(Y_test2, Y_right, eps)
++        assert_allclose(Y_test2, Y_right, rtol=eps)
+ 
+     def test_pdist_dhamming_random(self):
+-        eps = 1e-07
++        eps = 1e-15
+         X = np.float64(eo['pdist-boolean-inp'])
+         Y_right = eo['pdist-hamming']
+         Y_test1 = wpdist(X, 'hamming')
+-        _assert_within_tol(Y_test1, Y_right, eps)
++        assert_allclose(Y_test1, Y_right, rtol=eps)
+ 
+     def test_pdist_dhamming_random_float32(self):
+-        eps = 1e-07
++        eps = 1e-15
+         X = np.float32(eo['pdist-boolean-inp'])
+         Y_right = eo['pdist-hamming']
+         Y_test1 = wpdist(X, 'hamming')
+-        _assert_within_tol(Y_test1, Y_right, eps)
++        assert_allclose(Y_test1, Y_right, rtol=eps)
+ 
+     def test_pdist_dhamming_random_nonC(self):
+-        eps = 1e-07
++        eps = 1e-15
+         X = np.float64(eo['pdist-boolean-inp'])
+         Y_right = eo['pdist-hamming']
+         Y_test2 = wpdist(X, 'test_hamming')
+-        _assert_within_tol(Y_test2, Y_right, eps)
++        assert_allclose(Y_test2, Y_right, rtol=eps)
+ 
+     def test_pdist_jaccard_random(self):
+-        eps = 1e-08
++        eps = 1e-8
+         X = eo['pdist-boolean-inp']
+         Y_right = eo['pdist-jaccard']
+         Y_test1 = wpdist(X, 'jaccard')
+-        _assert_within_tol(Y_test1, Y_right, eps)
++        assert_allclose(Y_test1, Y_right, rtol=eps)
+ 
+     def test_pdist_jaccard_random_float32(self):
+-        eps = 1e-08
++        eps = 1e-8
+         X = np.float32(eo['pdist-boolean-inp'])
+         Y_right = eo['pdist-jaccard']
+         Y_test1 = wpdist(X, 'jaccard')
+-        _assert_within_tol(Y_test1, Y_right, eps)
++        assert_allclose(Y_test1, Y_right, rtol=eps)
+ 
+     def test_pdist_jaccard_random_nonC(self):
+-        eps = 1e-08
++        eps = 1e-8
+         X = eo['pdist-boolean-inp']
+         Y_right = eo['pdist-jaccard']
+         Y_test2 = wpdist(X, 'test_jaccard')
+-        _assert_within_tol(Y_test2, Y_right, eps)
++        assert_allclose(Y_test2, Y_right, rtol=eps)
+ 
+     def test_pdist_djaccard_random(self):
+-        eps = 1e-08
++        eps = 1e-8
+         X = np.float64(eo['pdist-boolean-inp'])
+         Y_right = eo['pdist-jaccard']
+         Y_test1 = wpdist(X, 'jaccard')
+-        _assert_within_tol(Y_test1, Y_right, eps)
++        assert_allclose(Y_test1, Y_right, rtol=eps)
+ 
+     def test_pdist_djaccard_random_float32(self):
+-        eps = 1e-08
++        eps = 1e-8
+         X = np.float32(eo['pdist-boolean-inp'])
+         Y_right = eo['pdist-jaccard']
+         Y_test1 = wpdist(X, 'jaccard')
+-        _assert_within_tol(Y_test1, Y_right, eps)
++        assert_allclose(Y_test1, Y_right, rtol=eps)
+ 
+     def test_pdist_djaccard_allzeros(self):
+-        eps = 1e-08
++        eps = 1e-15
+         Y = pdist(np.zeros((5, 3)), 'jaccard')
+-        _assert_within_tol(np.zeros(10), Y, eps)
++        assert_allclose(np.zeros(10), Y, rtol=eps)
+ 
+     def test_pdist_djaccard_random_nonC(self):
+-        eps = 1e-08
++        eps = 1e-8
+         X = np.float64(eo['pdist-boolean-inp'])
+         Y_right = eo['pdist-jaccard']
+         Y_test2 = wpdist(X, 'test_jaccard')
+-        _assert_within_tol(Y_test2, Y_right, eps)
++        assert_allclose(Y_test2, Y_right, rtol=eps)
+ 
+     def test_pdist_jensenshannon_random(self):
+-        eps = 1e-08
++        eps = 1e-11
+         X = eo['pdist-double-inp']
+         Y_right = eo['pdist-jensenshannon']
+         Y_test1 = pdist(X, 'jensenshannon')
+-        _assert_within_tol(Y_test1, Y_right, eps)
++        assert_allclose(Y_test1, Y_right, rtol=eps)
+ 
+     def test_pdist_jensenshannon_random_float32(self):
+-        eps = 1e-07
++        eps = 1e-8
+         X = np.float32(eo['pdist-double-inp'])
+         Y_right = eo['pdist-jensenshannon']
+         Y_test1 = pdist(X, 'jensenshannon')
+-        _assert_within_tol(Y_test1, Y_right, eps, verbose > 2)
++        assert_allclose(Y_test1, Y_right, rtol=eps, verbose=verbose > 2)
+ 
+     def test_pdist_jensenshannon_random_nonC(self):
+-        eps = 1e-08
++        eps = 1e-11
+         X = eo['pdist-double-inp']
+         Y_right = eo['pdist-jensenshannon']
+         Y_test2 = pdist(X, 'test_jensenshannon')
+-        _assert_within_tol(Y_test2, Y_right, eps)
++        assert_allclose(Y_test2, Y_right, rtol=eps)
+ 
+     def test_pdist_jensenshannon_iris(self):
+         if _is_32bit():
+@@ -1172,68 +1162,68 @@ def test_pdist_jensenshannon_iris(self):
+         X = eo['iris']
+         Y_right = eo['pdist-jensenshannon-iris']
+         Y_test1 = pdist(X, 'jensenshannon')
+-        _assert_within_tol(Y_test1, Y_right, eps)
++        assert_allclose(Y_test1, Y_right, atol=eps)
+ 
+     def test_pdist_jensenshannon_iris_float32(self):
+         eps = 1e-06
+         X = np.float32(eo['iris'])
+         Y_right = eo['pdist-jensenshannon-iris']
+         Y_test1 = pdist(X, 'jensenshannon')
+-        _assert_within_tol(Y_test1, Y_right, eps, verbose > 2)
++        assert_allclose(Y_test1, Y_right, atol=eps, verbose=verbose > 2)
+ 
+     def test_pdist_jensenshannon_iris_nonC(self):
+-        eps = 5e-12
++        eps = 5e-5
+         X = eo['iris']
+         Y_right = eo['pdist-jensenshannon-iris']
+         Y_test2 = pdist(X, 'test_jensenshannon')
+-        _assert_within_tol(Y_test2, Y_right, eps)
++        assert_allclose(Y_test2, Y_right, rtol=eps)
+ 
+     def test_pdist_djaccard_allzeros_nonC(self):
+-        eps = 1e-08
++        eps = 1e-15
+         Y = pdist(np.zeros((5, 3)), 'test_jaccard')
+-        _assert_within_tol(np.zeros(10), Y, eps)
++        assert_allclose(np.zeros(10), Y, rtol=eps)
+ 
+     def test_pdist_chebyshev_random(self):
+-        eps = 1e-08
++        eps = 1e-8
+         X = eo['pdist-double-inp']
+         Y_right = eo['pdist-chebyshev']
+         Y_test1 = pdist(X, 'chebyshev')
+-        _assert_within_tol(Y_test1, Y_right, eps)
++        assert_allclose(Y_test1, Y_right, rtol=eps)
+ 
+     def test_pdist_chebyshev_random_float32(self):
+-        eps = 1e-07
++        eps = 1e-7
+         X = np.float32(eo['pdist-double-inp'])
+         Y_right = eo['pdist-chebyshev']
+         Y_test1 = pdist(X, 'chebyshev')
+-        _assert_within_tol(Y_test1, Y_right, eps, verbose > 2)
++        assert_allclose(Y_test1, Y_right, rtol=eps, verbose=verbose > 2)
+ 
+     def test_pdist_chebyshev_random_nonC(self):
+-        eps = 1e-08
++        eps = 1e-8
+         X = eo['pdist-double-inp']
+         Y_right = eo['pdist-chebyshev']
+         Y_test2 = pdist(X, 'test_chebyshev')
+-        _assert_within_tol(Y_test2, Y_right, eps)
++        assert_allclose(Y_test2, Y_right, rtol=eps)
+ 
+     def test_pdist_chebyshev_iris(self):
+-        eps = 1e-15
++        eps = 1e-14
+         X = eo['iris']
+         Y_right = eo['pdist-chebyshev-iris']
+         Y_test1 = pdist(X, 'chebyshev')
+-        _assert_within_tol(Y_test1, Y_right, eps)
++        assert_allclose(Y_test1, Y_right, rtol=eps)
+ 
+     def test_pdist_chebyshev_iris_float32(self):
+-        eps = 1e-06
++        eps = 1e-5
+         X = np.float32(eo['iris'])
+         Y_right = eo['pdist-chebyshev-iris']
+         Y_test1 = pdist(X, 'chebyshev')
+-        _assert_within_tol(Y_test1, Y_right, eps, verbose > 2)
++        assert_allclose(Y_test1, Y_right, rtol=eps, verbose=verbose > 2)
+ 
+     def test_pdist_chebyshev_iris_nonC(self):
+-        eps = 1e-15
++        eps = 1e-14
+         X = eo['iris']
+         Y_right = eo['pdist-chebyshev-iris']
+         Y_test2 = pdist(X, 'test_chebyshev')
+-        _assert_within_tol(Y_test2, Y_right, eps)
++        assert_allclose(Y_test2, Y_right, rtol=eps)
+ 
+     def test_pdist_matching_mtica1(self):
+         # Test matching(*,*) with mtica example #1 (nums).
+@@ -1374,10 +1364,10 @@ def test_pdist_canberra_match(self):
+         D = eo['iris']
+         if verbose > 2:
+             print(D.shape, D.dtype)
+-        eps = 1e-10
++        eps = 1e-15
+         y1 = wpdist_no_const(D, ""canberra"")
+         y2 = wpdist_no_const(D, ""test_canberra"")
+-        _assert_within_tol(y1, y2, eps, verbose > 2)
++        assert_allclose(y1, y2, rtol=eps, verbose=verbose > 2)
+ 
+     def test_pdist_canberra_ticket_711(self):
+         # Test pdist(X, 'canberra') to see if Canberra gives the right result
+@@ -1385,7 +1375,7 @@ def test_pdist_canberra_ticket_711(self):
+         eps = 1e-8
+         pdist_y = wpdist_no_const(([3.3], [3.4]), ""canberra"")
+         right_y = 0.01492537
+-        _assert_within_tol(pdist_y, right_y, eps, verbose > 2)
++        assert_allclose(pdist_y, right_y, atol=eps, verbose=verbose > 2)
+ 
+     def test_pdist_custom_notdouble(self):
+         # tests that when using a custom metric the data type is not altered
+@@ -1416,8 +1406,8 @@ def _check_calling_conventions(self, X, metric, eps=1e-07, **kwargs):
+             assert_raises(e_cls, pdist, X, metric=eval(metric), **kwargs)
+             assert_raises(e_cls, pdist, X, metric=""test_"" + metric, **kwargs)
+         else:
+-            _assert_within_tol(y1, y2, rtol=eps, verbose_=verbose > 2)
+-            _assert_within_tol(y1, y3, rtol=eps, verbose_=verbose > 2)
++            assert_allclose(y1, y2, rtol=eps, verbose=verbose > 2)
++            assert_allclose(y1, y3, rtol=eps, verbose=verbose > 2)
+ 
+     def test_pdist_calling_conventions(self):
+         # Ensures that specifying the metric with a str or scipy function
+@@ -1471,11 +1461,11 @@ def test_pdist_dtype_equivalence(self):
+                 else:
+                     for new_type in test[1]:
+                         y2 = pdist(new_type(X1), metric=metric)
+-                        _assert_within_tol(y1, y2, eps, verbose > 2)
++                        assert_allclose(y1, y2, rtol=eps, verbose=verbose > 2)
+ 
+     def test_pdist_out(self):
+         # Test that out parameter works properly
+-        eps = 1e-07
++        eps = 1e-15
+         X = eo['random-float32-data'][::5, ::2]
+         out_size = int((X.shape[0] * (X.shape[0] - 1)) / 2)
+         for metric in _METRICS_NAMES:
+@@ -1486,7 +1476,7 @@ def test_pdist_out(self):
+             Y_right = pdist(X, metric, **kwargs)
+             Y_test1 = pdist(X, metric, out=out1, **kwargs)
+             # test that output is numerically equivalent
+-            _assert_within_tol(Y_test1, Y_right, eps)
++            assert_allclose(Y_test1, Y_right, rtol=eps)
+             # test that Y_test1 and out1 are the same object
+             assert_(Y_test1 is out1)
+             # test for incorrect shape
+@@ -1502,7 +1492,7 @@ def test_pdist_out(self):
+     def test_striding(self):
+         # test that striding is handled correct with calls to
+         # _copy_array_if_base_present
+-        eps = 1e-07
++        eps = 1e-15
+         X = eo['random-float32-data'][::5, ::2]
+         X_copy = X.copy()
+ 
+@@ -1517,7 +1507,7 @@ def test_striding(self):
+             Y1 = pdist(X, metric, **kwargs)
+             Y2 = pdist(X_copy, metric, **kwargs)
+             # test that output is numerically equivalent
+-            _assert_within_tol(Y1, Y2, eps, verbose > 2)
++            assert_allclose(Y1, Y2, rtol=eps, verbose=verbose > 2)
+ 
+ class TestSomeDistanceFunctions:
+ 
+"
+2,"diff --git a/scipy/special/_add_newdocs.py b/scipy/special/_add_newdocs.py
+index 9f1fb82c92f5..588f2ed94015 100644
+--- a/scipy/special/_add_newdocs.py
++++ b/scipy/special/_add_newdocs.py
+@@ -8129,7 +8129,7 @@ def add_newdoc(name, doc):
+ 
+     .. math::
+ 
+-       \exp(-m) \sum_{j = 0}^{\lfloor{k}\rfloor} \frac{m^j}{m!}.
++       \exp(-m) \sum_{j = 0}^{\lfloor{k}\rfloor} \frac{m^j}{j!}.
+ 
+     Parameters
+     ----------
+"
+3,"diff --git a/scipy/signal/tests/test_savitzky_golay.py b/scipy/signal/tests/test_savitzky_golay.py
+index 2eb702eea7eb..d0404f3af557 100644
+--- a/scipy/signal/tests/test_savitzky_golay.py
++++ b/scipy/signal/tests/test_savitzky_golay.py
+@@ -157,6 +157,43 @@ def test_sg_coeffs_large():
+     coeffs1 = savgol_coeffs(31, 9, deriv=1)
+     assert_array_almost_equal(coeffs1, -coeffs1[::-1])
+ 
++#--------------------------------------------------------------------
++# savgol_coeffs tests for even window length
++#--------------------------------------------------------------------
++
++def test_sg_coeffs_even_window_length():
++    # Simple case - deriv=0, polyorder=0, 1
++    window_lengths = [4, 6, 8, 10, 12, 14, 16]
++    for length in window_lengths:
++        h_p_d = savgol_coeffs(length, 0, 0)
++        assert_allclose(h_p_d, 1/length)
++    
++    # Verify with closed forms
++    # deriv=1, polyorder=1, 2
++    def h_p_d_closed_form_1(k, m):
++        return 6*(k - 0.5)/((2*m + 1)*m*(2*m - 1))
++    
++    # deriv=2, polyorder=2
++    def h_p_d_closed_form_2(k, m):
++        numer = 15*(-4*m**2 + 1 + 12*(k - 0.5)**2)
++        denom = 4*(2*m + 1)*(m + 1)*m*(m - 1)*(2*m - 1)
++        return numer/denom
++    
++    for length in window_lengths:
++        m = length//2
++        expected_output = [h_p_d_closed_form_1(k, m)
++                            for k in range(-m + 1, m + 1)][::-1]
++        actual_output = savgol_coeffs(length, 1, 1)
++        assert_allclose(expected_output, actual_output)
++        actual_output = savgol_coeffs(length, 2, 1)
++        assert_allclose(expected_output, actual_output)
++
++        expected_output = [h_p_d_closed_form_2(k, m)
++                            for k in range(-m + 1, m + 1)][::-1]
++        actual_output = savgol_coeffs(length, 2, 2)
++        assert_allclose(expected_output, actual_output)
++        actual_output = savgol_coeffs(length, 3, 2)
++        assert_allclose(expected_output, actual_output)
+ 
+ #--------------------------------------------------------------------
+ # savgol_filter tests
+"
+4,"diff --git a/scipy/signal/_savitzky_golay.py b/scipy/signal/_savitzky_golay.py
+index 59fe51e062cc..de642d8d72f2 100644
+--- a/scipy/signal/_savitzky_golay.py
++++ b/scipy/signal/_savitzky_golay.py
+@@ -13,7 +13,6 @@ def savgol_coeffs(window_length, polyorder, deriv=0, delta=1.0, pos=None,
+     ----------
+     window_length : int
+         The length of the filter window (i.e., the number of coefficients).
+-        `window_length` must be an odd positive integer.
+     polyorder : int
+         The order of the polynomial used to fit the samples.
+         `polyorder` must be less than `window_length`.
+@@ -44,6 +43,9 @@ def savgol_coeffs(window_length, polyorder, deriv=0, delta=1.0, pos=None,
+     A. Savitzky, M. J. E. Golay, Smoothing and Differentiation of Data by
+     Simplified Least Squares Procedures. Analytical Chemistry, 1964, 36 (8),
+     pp 1627-1639.
++    Jianwen Luo, Kui Ying, and Jing Bai. 2005. Savitzky-Golay smoothing and
++    differentiation filter for even number data. Signal Process.
++    85, 7 (July 2005), 1429-1434. 
+ 
+     See Also
+     --------
+@@ -69,6 +71,8 @@ def savgol_coeffs(window_length, polyorder, deriv=0, delta=1.0, pos=None,
+     array([ 0.25714286,  0.37142857,  0.34285714,  0.17142857, -0.14285714])
+     >>> savgol_coeffs(5, 2, pos=3, use='dot')
+     array([-0.14285714,  0.17142857,  0.34285714,  0.37142857,  0.25714286])
++    >>> savgol_coeffs(4, 2, pos=3, deriv=1, use='dot')
++    array([0.45,  -0.85,  -0.65,  1.05])
+ 
+     `x` contains data from the parabola x = t**2, sampled at
+     t = -1, 0, 1, 2, 3.  `c` holds the coefficients that will compute the
+@@ -98,11 +102,11 @@ def savgol_coeffs(window_length, polyorder, deriv=0, delta=1.0, pos=None,
+ 
+     halflen, rem = divmod(window_length, 2)
+ 
+-    if rem == 0:
+-        raise ValueError(""window_length must be odd."")
+-
+     if pos is None:
+-        pos = halflen
++        if rem == 0:
++            pos = halflen - 0.5
++        else:
++            pos = halflen
+ 
+     if not (0 <= pos < window_length):
+         raise ValueError(""pos must be nonnegative and less than ""
+@@ -120,6 +124,7 @@ def savgol_coeffs(window_length, polyorder, deriv=0, delta=1.0, pos=None,
+     # from 0 to polyorder. (That is, A is a vandermonde matrix, but not
+     # necessarily square.)
+     x = np.arange(-pos, window_length - pos, dtype=float)
++
+     if use == ""conv"":
+         # Reverse so that result can be used in a convolution.
+         x = x[::-1]
+@@ -237,8 +242,8 @@ def savgol_filter(x, window_length, polyorder, deriv=0, delta=1.0,
+         before filtering.
+     window_length : int
+         The length of the filter window (i.e., the number of coefficients).
+-        `window_length` must be a positive odd integer. If `mode` is 'interp',
+-        `window_length` must be less than or equal to the size of `x`.
++        If `mode` is 'interp', `window_length` must be less than or equal 
++        to the size of `x`.
+     polyorder : int
+         The order of the polynomial used to fit the samples.
+         `polyorder` must be less than `window_length`.
+"
+5,"diff --git a/runtests.py b/runtests.py
+index dafe959bcb12..9892279a1422 100755
+--- a/runtests.py
++++ b/runtests.py
+@@ -50,6 +50,7 @@
+ 
+ import sys
+ import os
++import errno
+ # the following multiprocessing import is necessary to prevent tests that use
+ # multiprocessing from hanging on >= Python3.8 (macOS) using pytest. Just the
+ # import is enough...
+"
+6,"diff --git a/scipy/stats/_unuran/unuran_wrapper.pyx.templ b/scipy/stats/_unuran/unuran_wrapper.pyx.templ
+index e80a38eb0714..53b19f33bab6 100644
+--- a/scipy/stats/_unuran/unuran_wrapper.pyx.templ
++++ b/scipy/stats/_unuran/unuran_wrapper.pyx.templ
+@@ -1121,11 +1121,11 @@ cdef class SimpleRatioUniforms(Method):
+ 
+             if mode is not None:
+                 self._check_errorcode(unur_distr_cont_set_mode(self.distr, mode))
+-            self._check_errorcode(unur_distr_cont_set_pdfarea(self.distr, pdf_area))
+ 
+             if domain is not None:
+                 self._check_errorcode(unur_distr_cont_set_domain(self.distr, domain[0],
+                                                                  domain[1]))
++            self._check_errorcode(unur_distr_cont_set_pdfarea(self.distr, pdf_area))
+ 
+             self.par = unur_srou_new(self.distr)
+             if self.par == NULL:
+"
+7,"diff --git a/scipy/sparse/linalg/_matfuncs.py b/scipy/sparse/linalg/_matfuncs.py
+index d309d6126b88..fded1ebd71a2 100644
+--- a/scipy/sparse/linalg/_matfuncs.py
++++ b/scipy/sparse/linalg/_matfuncs.py
+@@ -33,19 +33,19 @@ def inv(A):
+ 
+     Parameters
+     ----------
+-    A : (M,M) ndarray or sparse matrix
++    A : (M, M) sparse matrix
+         square matrix to be inverted
+ 
+     Returns
+     -------
+-    Ainv : (M,M) ndarray or sparse matrix
++    Ainv : (M, M) sparse matrix
+         inverse of `A`
+ 
+     Notes
+     -----
+     This computes the sparse inverse of `A`. If the inverse of `A` is expected
+     to be non-sparse, it will likely be faster to convert `A` to dense and use
+-    scipy.linalg.inv.
++    `scipy.linalg.inv`.
+ 
+     Examples
+     --------
+@@ -66,10 +66,11 @@ def inv(A):
+     .. versionadded:: 0.12.0
+ 
+     """"""
+-    #check input
++    # Check input
+     if not (scipy.sparse.isspmatrix(A) or is_pydata_spmatrix(A)):
+         raise TypeError('Input must be a sparse matrix')
+ 
++    # Use sparse direct solver to solve ""AX = I"" accurately
+     I = _ident_like(A)
+     Ainv = spsolve(A, I)
+     return Ainv
+@@ -92,7 +93,7 @@ def _onenorm_matrix_power_nnm(A, p):
+         The 1-norm of the matrix power p of A.
+ 
+     """"""
+-    # check input
++    # Check input
+     if int(p) != p or p < 0:
+         raise ValueError('expected non-negative integer p')
+     p = int(p)
+"
+8,"diff --git a/scipy/spatial/tests/test_distance.py b/scipy/spatial/tests/test_distance.py
+index 6b4ad04b85d0..f9636fe651f8 100644
+--- a/scipy/spatial/tests/test_distance.py
++++ b/scipy/spatial/tests/test_distance.py
+@@ -1157,19 +1157,19 @@ def test_pdist_jensenshannon_iris(self):
+             # Test failing on 32-bit Linux on Azure otherwise, see gh-12810
+             eps = 1.5e-10
+         else:
+-            eps = 1e-10
++            eps = 1e-12
+ 
+         X = eo['iris']
+         Y_right = eo['pdist-jensenshannon-iris']
+         Y_test1 = pdist(X, 'jensenshannon')
+-        assert_allclose(Y_test1, Y_right, rtol=eps)
++        assert_allclose(Y_test1, Y_right, atol=eps)
+ 
+     def test_pdist_jensenshannon_iris_float32(self):
+-        eps = 1e-5
++        eps = 1e-06
+         X = np.float32(eo['iris'])
+         Y_right = eo['pdist-jensenshannon-iris']
+         Y_test1 = pdist(X, 'jensenshannon')
+-        assert_allclose(Y_test1, Y_right, rtol=eps, verbose=verbose > 2)
++        assert_allclose(Y_test1, Y_right, atol=eps, verbose=verbose > 2)
+ 
+     def test_pdist_jensenshannon_iris_nonC(self):
+         eps = 5e-5
+"
+9,"diff --git a/scipy/signal/_spectral_py.py b/scipy/signal/_spectral_py.py
+index 92fcbec63be2..d6c71c2162da 100644
+--- a/scipy/signal/_spectral_py.py
++++ b/scipy/signal/_spectral_py.py
+@@ -122,16 +122,15 @@ def lombscargle(x,
+ 
+     Now make a plot of the input data:
+ 
+-    >>> plt.subplot(2, 1, 1)
+-    >>> plt.plot(x, y, 'b+')
+-    >>> plt.xlabel('Time [s]')
++    >>> fig, (ax_t, ax_w) = plt.subplots(2, 1, constrained_layout=True)
++    >>> ax_t.plot(x, y, 'b+')
++    >>> ax_t.set_xlabel('Time [s]')
+ 
+     Then plot the normalized periodogram:
+ 
+-    >>> plt.subplot(2, 1, 2)
+-    >>> plt.plot(w, pgram)
+-    >>> plt.xlabel('Angular frequency [rad/s]')
+-    >>> plt.ylabel('Normalized amplitude')
++    >>> ax_w.plot(w, pgram)
++    >>> ax_w.set_xlabel('Angular frequency [rad/s]')
++    >>> ax_w.set_ylabel('Normalized amplitude')
+     >>> plt.show()
+ 
+     """"""
+"
+10,"diff --git a/scipy/signal/_spectral_py.py b/scipy/signal/_spectral_py.py
+index 92fcbec63be2..d6c71c2162da 100644
+--- a/scipy/signal/_spectral_py.py
++++ b/scipy/signal/_spectral_py.py
+@@ -122,16 +122,15 @@ def lombscargle(x,
+ 
+     Now make a plot of the input data:
+ 
+-    >>> plt.subplot(2, 1, 1)
+-    >>> plt.plot(x, y, 'b+')
+-    >>> plt.xlabel('Time [s]')
++    >>> fig, (ax_t, ax_w) = plt.subplots(2, 1, constrained_layout=True)
++    >>> ax_t.plot(x, y, 'b+')
++    >>> ax_t.set_xlabel('Time [s]')
+ 
+     Then plot the normalized periodogram:
+ 
+-    >>> plt.subplot(2, 1, 2)
+-    >>> plt.plot(w, pgram)
+-    >>> plt.xlabel('Angular frequency [rad/s]')
+-    >>> plt.ylabel('Normalized amplitude')
++    >>> ax_w.plot(w, pgram)
++    >>> ax_w.set_xlabel('Angular frequency [rad/s]')
++    >>> ax_w.set_ylabel('Normalized amplitude')
+     >>> plt.show()
+ 
+     """"""
+"
+11,"diff --git a/scipy/spatial/tests/test_distance.py b/scipy/spatial/tests/test_distance.py
+index d0455ab0aa3b..6b4ad04b85d0 100644
+--- a/scipy/spatial/tests/test_distance.py
++++ b/scipy/spatial/tests/test_distance.py
+@@ -444,7 +444,7 @@ def test_cdist_minkowski_random(self, p):
+         X2 = eo['cdist-X2']
+         Y1 = wcdist_no_const(X1, X2, 'minkowski', p=p)
+         Y2 = wcdist_no_const(X1, X2, 'test_minkowski', p=p)
+-        assert_allclose(Y1, Y2, atol=0, rtol=eps, verbose_=verbose > 2)
++        assert_allclose(Y1, Y2, atol=0, rtol=eps, verbose=verbose > 2)
+ 
+     def test_cdist_cosine_random(self):
+         eps = 1e-14
+"
+12,"diff --git a/scipy/spatial/tests/test_distance.py b/scipy/spatial/tests/test_distance.py
+index 9259e0bda7e9..d0455ab0aa3b 100644
+--- a/scipy/spatial/tests/test_distance.py
++++ b/scipy/spatial/tests/test_distance.py
+@@ -444,7 +444,7 @@ def test_cdist_minkowski_random(self, p):
+         X2 = eo['cdist-X2']
+         Y1 = wcdist_no_const(X1, X2, 'minkowski', p=p)
+         Y2 = wcdist_no_const(X1, X2, 'test_minkowski', p=p)
+-        _assert_within_tol(Y1, Y2, atol=0, rtol=eps, verbose_=verbose > 2)
++        assert_allclose(Y1, Y2, atol=0, rtol=eps, verbose_=verbose > 2)
+ 
+     def test_cdist_cosine_random(self):
+         eps = 1e-14
+@@ -954,7 +954,7 @@ def test_pdist_minkowski_random_p(self, p):
+         X = eo['pdist-double-inp']
+         Y1 = wpdist_no_const(X, 'minkowski', p=p)
+         Y2 = wpdist_no_const(X, 'test_minkowski', p=p)
+-        _assert_within_tol(Y1, Y2, atol=0, rtol=eps)
++        assert_allclose(Y1, Y2, atol=0, rtol=eps)
+ 
+     def test_pdist_minkowski_random(self):
+         eps = 1e-7
+"
+13,"diff --git a/scipy/spatial/tests/test_distance.py b/scipy/spatial/tests/test_distance.py
+index dcfe2b7fa570..f5de4fec7a0f 100644
+--- a/scipy/spatial/tests/test_distance.py
++++ b/scipy/spatial/tests/test_distance.py
+@@ -824,27 +824,27 @@ def test_pdist_cosine_random_nonC(self):
+ 
+     @pytest.mark.slow
+     def test_pdist_cosine_iris(self):
+-        eps = 1e-15
++        eps = 1e-05
+         X = eo['iris']
+         Y_right = eo['pdist-cosine-iris']
+         Y_test1 = wpdist(X, 'cosine')
+-        assert_allclose(Y_test1, Y_right, rtol=eps)
++        assert_allclose(Y_test1, Y_right, atol=eps)
+ 
+     @pytest.mark.slow
+     def test_pdist_cosine_iris_float32(self):
+-        eps = 1e-15
++        eps = 1e-05
+         X = np.float32(eo['iris'])
+         Y_right = eo['pdist-cosine-iris']
+         Y_test1 = wpdist(X, 'cosine')
+-        assert_allclose(Y_test1, Y_right, rtol=eps, verbose=verbose > 2)
++        assert_allclose(Y_test1, Y_right, atol=eps, verbose=verbose > 2)
+ 
+     @pytest.mark.slow
+     def test_pdist_cosine_iris_nonC(self):
+-        eps = 1e-15
++        eps = 1e-05
+         X = eo['iris']
+         Y_right = eo['pdist-cosine-iris']
+         Y_test2 = wpdist(X, 'test_cosine')
+-        assert_allclose(Y_test2, Y_right, rtol=eps)
++        assert_allclose(Y_test2, Y_right, atol=eps)
+ 
+     def test_pdist_cosine_bounds(self):
+         # Test adapted from @joernhees's example at gh-5208: case where
+"
+14,"diff --git a/scipy/special/_orthogonal.py b/scipy/special/_orthogonal.py
+index 06fd92269d75..3c104ccbeb25 100644
+--- a/scipy/special/_orthogonal.py
++++ b/scipy/special/_orthogonal.py
+@@ -2275,11 +2275,11 @@ def roots_legendre(n, mu=False):
+     r""""""Gauss-Legendre quadrature.
+ 
+     Compute the sample points and weights for Gauss-Legendre
+-    quadrature. The sample points are the roots of the nth degree
++    quadrature [GL]_. The sample points are the roots of the nth degree
+     Legendre polynomial :math:`P_n(x)`. These sample points and
+     weights correctly integrate polynomials of degree :math:`2n - 1`
+     or less over the interval :math:`[-1, 1]` with weight function
+-    :math:`w(x) = 1.0`. See 2.2.10 in [AS]_ for more details.
++    :math:`w(x) = 1`. See 2.2.10 in [AS]_ for more details.
+ 
+     Parameters
+     ----------
+@@ -2308,6 +2308,75 @@ def roots_legendre(n, mu=False):
+     .. [AS] Milton Abramowitz and Irene A. Stegun, eds.
+         Handbook of Mathematical Functions with Formulas,
+         Graphs, and Mathematical Tables. New York: Dover, 1972.
++    .. [GL] Gauss-Legendre quadrature, Wikipedia,
++        https://en.wikipedia.org/wiki/Gauss%E2%80%93Legendre_quadrature
++
++    Examples
++    --------
++    >>> from scipy.special import roots_legendre, eval_legendre
++    >>> roots, weights = roots_legendre(9)
++
++    ``roots`` holds the roots, and ``weights`` holds the weights for
++    Gauss-Legendre quadrature.
++
++    >>> roots
++    array([-0.96816024, -0.83603111, -0.61337143, -0.32425342,  0.        ,
++            0.32425342,  0.61337143,  0.83603111,  0.96816024])
++    >>> weights
++    array([0.08127439, 0.18064816, 0.2606107 , 0.31234708, 0.33023936,
++           0.31234708, 0.2606107 , 0.18064816, 0.08127439])
++
++    Verify that we have the roots by evaluating the degree 9 Legendre
++    polynomial at ``roots``.  All the values are approximately zero:
++
++    >>> eval_legendre(9, roots)
++    array([-8.88178420e-16, -2.22044605e-16,  1.11022302e-16,  1.11022302e-16,
++            0.00000000e+00, -5.55111512e-17, -1.94289029e-16,  1.38777878e-16,
++           -8.32667268e-17])
++
++    Here we'll show how the above values can be used to estimate the
++    integral from 1 to 2 of f(t) = t + 1/t with Gauss-Legendre
++    quadrature [GL]_.  First define the function and the integration
++    limits.
++
++    >>> def f(t):
++    ...    return t + 1/t
++    ...
++    >>> a = 1
++    >>> b = 2
++
++    We'll use ``integral(f(t), t=a, t=b)`` to denote the definite integral
++    of f from t=a to t=b.  The sample points in ``roots`` are from the
++    interval [-1, 1], so we'll rewrite the integral with the simple change
++    of variable::
++
++        x = 2/(b - a) * t - (a + b)/(b - a)
++
++    with inverse::
++
++        t = (b - a)/2 * x + (a + 2)/2
++
++    Then::
++
++        integral(f(t), a, b) =
++            (b - a)/2 * integral(f((b-a)/2*x + (a+b)/2), x=-1, x=1)
++
++    We can approximate the latter integral with the values returned
++    by `roots_legendre`.
++
++    Map the roots computed above from [-1, 1] to [a, b].
++
++    >>> t = (b - a)/2 * roots + (a + b)/2
++
++    Approximate the integral as the weighted sum of the function values.
++
++    >>> (b - a)/2 * f(t).dot(weights)
++    2.1931471805599276
++
++    Compare that to the exact result, which is 3/2 + log(2):
++
++    >>> 1.5 + np.log(2)
++    2.1931471805599454
+ 
+     """"""
+     m = int(n)
+@@ -2319,7 +2388,7 @@ def roots_legendre(n, mu=False):
+     bn_func = lambda k: k * np.sqrt(1.0 / (4 * k * k - 1))
+     f = cephes.eval_legendre
+     df = lambda n, x: (-n*x*cephes.eval_legendre(n, x)
+-                     + n*cephes.eval_legendre(n-1, x))/(1-x**2)
++                       + n*cephes.eval_legendre(n-1, x))/(1-x**2)
+     return _gen_roots_and_weights(m, mu0, an_func, bn_func, f, df, True, mu)
+ 
+ 
+"
+15,"diff --git a/scipy/special/_spfun_stats.py b/scipy/special/_spfun_stats.py
+index 19f19813bf12..8d7b91fb19f0 100644
+--- a/scipy/special/_spfun_stats.py
++++ b/scipy/special/_spfun_stats.py
+@@ -80,6 +80,19 @@ def multigammaln(a, d):
+     R. J. Muirhead, Aspects of multivariate statistical theory (Wiley Series in
+     probability and mathematical statistics).
+ 
++    Examples
++    --------
++    >>> from scipy.special import multigammaln, gammaln
++    >>> a = 23.5
++    >>> d = 10
++    >>> multigammaln(a, d)
++    454.1488605074416
++
++    Verify that the result agrees with the logarithm of the equation
++    shown above:
++
++    >>> d*(d-1)/4*np.log(np.pi) + gammaln(a - 0.5*np.arange(0, d)).sum()
++    454.1488605074416
+     """"""
+     a = np.asarray(a)
+     if not np.isscalar(d) or (np.floor(d) != d):
+"
+16,"diff --git a/doc/source/building/linux.rst b/doc/source/building/linux.rst
+index 0884297b198b..9367edd20bfc 100644
+--- a/doc/source/building/linux.rst
++++ b/doc/source/building/linux.rst
+@@ -29,7 +29,7 @@ SciPy depend on
+   <https://github.com/xianyi/OpenBLAS/>`__, or `MKL
+   <https://software.intel.com/en-us/intel-mkl>`__.
+ 
+-* C and Fortran compilers (typically ``gcc`` and ``gfortran``).
++* C, C++, and Fortran compilers (typically ``gcc``, ``g++``, and ``gfortran``).
+ 
+ * Python header files (typically a package named ``python3-dev`` or ``python3-devel``)
+ 
+@@ -69,7 +69,7 @@ Debian / Ubuntu
+ 
+ To build from source, the following packages are needed::
+ 
+-   sudo apt-get install gcc gfortran python3-dev libopenblas-dev liblapack-dev
++   sudo apt-get install gcc g++ gfortran python3-dev libopenblas-dev liblapack-dev
+ 
+ To customize which BLAS is used, you can set up a `site.cfg` file. See
+ the `site.cfg.example` file in the numpy source for the options you
+"
+17,"diff --git a/scipy/signal/_spectral_py.py b/scipy/signal/_spectral_py.py
+index a17f3a669d31..92fcbec63be2 100644
+--- a/scipy/signal/_spectral_py.py
++++ b/scipy/signal/_spectral_py.py
+@@ -99,40 +99,39 @@ def lombscargle(x,
+     First define some input parameters for the signal:
+ 
+     >>> A = 2.
+-    >>> w = 1.
+-    >>> phi = 0.5 * np.pi
+-    >>> nin = 1000
++    >>> w0 = 1.  # rad/sec
++    >>> nin = 150
+     >>> nout = 100000
+-    >>> frac_points = 0.9  # Fraction of points to select
+ 
+-    Randomly select a fraction of an array with timesteps:
++    Randomly generate sample times:
+ 
+-    >>> r = rng.standard_normal(nin)
+-    >>> x = np.linspace(0.01, 10*np.pi, nin)
+-    >>> x = x[r >= frac_points]
++    >>> x = rng.uniform(0, 10*np.pi, nin)
+ 
+     Plot a sine wave for the selected times:
+ 
+-    >>> y = A * np.sin(w*x+phi)
++    >>> y = A * np.cos(w0*x)
+ 
+     Define the array of frequencies for which to compute the periodogram:
+ 
+-    >>> f = np.linspace(0.01, 10, nout)
++    >>> w = np.linspace(0.01, 10, nout)
+ 
+     Calculate Lomb-Scargle periodogram:
+ 
+     >>> import scipy.signal as signal
+-    >>> pgram = signal.lombscargle(x, y, f, normalize=True)
++    >>> pgram = signal.lombscargle(x, y, w, normalize=True)
+ 
+     Now make a plot of the input data:
+ 
+     >>> plt.subplot(2, 1, 1)
+     >>> plt.plot(x, y, 'b+')
++    >>> plt.xlabel('Time [s]')
+ 
+     Then plot the normalized periodogram:
+ 
+     >>> plt.subplot(2, 1, 2)
+-    >>> plt.plot(f, pgram)
++    >>> plt.plot(w, pgram)
++    >>> plt.xlabel('Angular frequency [rad/s]')
++    >>> plt.ylabel('Normalized amplitude')
+     >>> plt.show()
+ 
+     """"""
+"
+18,"diff --git a/doc/source/building/linux.rst b/doc/source/building/linux.rst
+index 0884297b198b..9367edd20bfc 100644
+--- a/doc/source/building/linux.rst
++++ b/doc/source/building/linux.rst
+@@ -29,7 +29,7 @@ SciPy depend on
+   <https://github.com/xianyi/OpenBLAS/>`__, or `MKL
+   <https://software.intel.com/en-us/intel-mkl>`__.
+ 
+-* C and Fortran compilers (typically ``gcc`` and ``gfortran``).
++* C, C++, and Fortran compilers (typically ``gcc``, ``g++``, and ``gfortran``).
+ 
+ * Python header files (typically a package named ``python3-dev`` or ``python3-devel``)
+ 
+@@ -69,7 +69,7 @@ Debian / Ubuntu
+ 
+ To build from source, the following packages are needed::
+ 
+-   sudo apt-get install gcc gfortran python3-dev libopenblas-dev liblapack-dev
++   sudo apt-get install gcc g++ gfortran python3-dev libopenblas-dev liblapack-dev
+ 
+ To customize which BLAS is used, you can set up a `site.cfg` file. See
+ the `site.cfg.example` file in the numpy source for the options you
+"
+19,"diff --git a/scipy/signal/_filter_design.py b/scipy/signal/_filter_design.py
+index 76a5dc71d82f..edbe9b915d1a 100644
+--- a/scipy/signal/_filter_design.py
++++ b/scipy/signal/_filter_design.py
+@@ -2862,10 +2862,10 @@ def butter(N, Wn, btype='low', analog=False, output='ba', fs=None):
+         For a Butterworth filter, this is the point at which the gain
+         drops to 1/sqrt(2) that of the passband (the ""-3 dB point"").
+ 
+-        For digital filters, `Wn` are in the same units as `fs`.  By default,
+-        `fs` is 2 half-cycles/sample, so these are normalized from 0 to 1,
+-        where 1 is the Nyquist frequency. (`Wn` is thus in
+-        half-cycles / sample.)
++        For digital filters, if `fs` is not specified, `Wn` units are
++        normalized from 0 to 1, where 1 is the Nyquist frequency (`Wn` is
++        thus in half cycles / sample and defined as 2*critical frequencies
++        / `fs`). If `fs` is specified, `Wn` is in the same units as `fs`.
+ 
+         For analog filters, `Wn` is an angular frequency (e.g. rad/s).
+     btype : {'lowpass', 'highpass', 'bandpass', 'bandstop'}, optional
+"
+20,"diff --git a/doc/source/dev/toolchain.rst b/doc/source/dev/toolchain.rst
+index ae4db9b1aa80..84b7cd335139 100644
+--- a/doc/source/dev/toolchain.rst
++++ b/doc/source/dev/toolchain.rst
+@@ -46,9 +46,8 @@ Python Versions
+ ^^^^^^^^^^^^^^^
+ 
+ SciPy is compatible with several versions of Python.  When dropping support for
+-older Python versions, SciPy takes guidance from NEP 29 [10]_.  Python 2.7
+-support was dropped for SciPy releases numbered 1.3 and above but is still
+-available in release 1.2.x, which is a long-term support release [1]_, [2]_.
++older Python versions, SciPy takes guidance from NEP 29 [1]_.  Python 2.7
++support was dropped starting from SciPy 1.3.
+ 
+ ================  =======================================================================
+  Date             Pythons supported
+@@ -57,6 +56,7 @@ available in release 1.2.x, which is a long-term support release [1]_, [2]_.
+  2019              Py3.5+ (but Py2.7-specific code not removed)
+  2020              Py3.6+ (removal of Py2.7-specific code permitted)
+  2021              Py3.7+
++ 2022              Py3.8+
+ ================  =======================================================================
+ 
+ NumPy
+@@ -65,7 +65,7 @@ NumPy
+ SciPy depends on NumPy but releases of SciPy are not tied to releases of NumPy.
+ SciPy attempts to be compatible with at least the 4 previous releases of NumPy.
+ In particular, SciPy cannot rely on features of just the latest NumPy, but
+-needs to be written using what is common in all of those 4 releases. [1]_, [3]_.
++needs to be written using what is common in all of those 4 releases [2]_.
+ 
+ The table shows the NumPy versions suitable for each major Python version.
+ 
+@@ -82,8 +82,8 @@ The table shows the NumPy versions suitable for each major Python version.
+ =================  ========================    =======================
+ 
+ In specific cases, such as a particular architecture, these requirements
+-could vary. Please check the release notes and the meta-package
+-``oldest-supported-numpy`` for more info. [18]_, [19]_.
++could vary. Please check the release notes [3]_ and the meta-package
++``oldest-supported-numpy`` for more info [4]_.
+ 
+ 
+ Compilers
+@@ -91,7 +91,7 @@ Compilers
+ 
+ Building SciPy requires compilers for C, C++, Fortran, as well as the
+ python transpilers Cython and Pythran (the latter is an opt-out dependency
+-as of version 1.7.0).
++starting from version 1.7.0).
+ 
+ To maintain compatibility with a large number of platforms & setups, especially
+ where using the official wheels (or other distribution channels like Anaconda
+@@ -103,15 +103,16 @@ Official Builds
+ Currently, SciPy wheels are being built as follows:
+ 
+ ================  ========================  ===========================  ==============================
+- Platform          Azure Base Image [14]_    Compilers                    Comment
++ Platform          Azure Base Image [5]_     Compilers                    Comment
+ ================  ========================  ===========================  ==============================
+-Linux (nightly)    ``ubuntu-18.04``          GCC 4.8                      See ``azure-pipelines.yml``
+-Linux (release)    ``ubuntu-18.04``          GCC 7.5                      Built in separate repo [15]_
+-OSX                ``macOS-10.14``           LLVM 11.0                    Built in separate repo [15]_
+-Windows            ``VS2017-Win2016``        Visual Studio 2017 (15.9)    See ``azure-pipelines.yml``
++Linux (nightly)    ``ubuntu-18.04``          GCC 6.5                      See ``azure-pipelines.yml``
++Linux (release)    ``ubuntu-18.04``          GCC 7.5                      Built in separate repo [6]_
++OSX                ``macOS-10.15``           LLVM 12.0.0                  Built in separate repo [6]_
++Windows            ``windows-latest``        Visual Studio 2019 (16.11)   See ``azure-pipelines.yml``
+ ================  ========================  ===========================  ==============================
+ 
+-Note that the OSX wheels additionally vendor gfortran 4.8, see [15]_.
++Note that the OSX wheels additionally vendor gfortran 4.9,
++see submodule ``gfortran-install`` in [6]_.
+ 
+ 
+ C Compilers
+@@ -121,92 +122,85 @@ SciPy is compatible with most modern C compilers (in particular ``clang``).
+ In addition to concerns about compatibility with non-standard platforms,
+ there was a long-standing restriction that Windows builds of SciPy had to use
+ the same version of the Microsoft Visual C++ compiler as were used for CPython
+-itself, for reasons of ABI-compatibility [6]_, [7]_, [8]_, [9]_.
++itself, for reasons of ABI-compatibility [7]_, [8]_.
+ 
+-With the introduction of the ""Universal C Runtime"" [16]_ since the release of
++With the introduction of the ""Universal C Runtime"" [9]_ since the release of
+ Visual Studio 2015, this restriction has been lifted. For more context, see the
+ explanations by Steve Dower (member of the CPython-on-Windows core developers)
+-on this topic [17]_.
++on this topic [10]_.
+ 
+-The use of MS Visual Studio 9.0 (which doesn't have support C99)
++The use of MS Visual Studio 9.0 (which doesn't have support for C99)
+ to build Python 2.7 has meant that C code in SciPy has had to conform
+ to the earlier C90 standard for the language and standard library.
+ With the dropping of Python 2.7 for SciPy 1.3.x, the C90 restriction is no
+-longer imposed by compilers. For GCC version < 5, an explicit ``-std=c99``
+-may have to be added by the user if C99 features are used in SciPy code.
++longer imposed by compilers.
+ 
+ In terms of C language standards, it's relevant to note that C11 has optional
+-features [12]_ (e.g. atomics, threading), some of which (VLAs & complex types)
++features [11]_ (e.g. atomics, threading), some of which (VLAs & complex types)
+ were mandatory in the C99 standard. C17 (occasionally called C18) can be
+ considered a bug fix for C11, so generally, C11 may be skipped entirely.
+ 
+ SciPy has been restricted in the use of more advanced language features by the
+ available compiler support, and Microsoft in particular has taken very long to
+ achieve conformance to C99/C11/C17, however starting from MS Visual Studio 16.8,
+-C11/C17 is supported [11]_ (though without the C11 optional features).
++C11/C17 is supported [12]_ (though without the C11 optional features).
++C99 ``<complex.h>`` would be particularly interesting for SciPy;
++MSVC conformance for this is being tracked here [13]_.
+ 
+-Therefore, using C features beyond C90 is contingent upon updating the windows
+-toolchain for SciPy, as well as checking compiler support for the desired feature
+-across all minimally supported compiler versions. In short:
++Therefore, using C features beyond C90 was only possible insofar there was support on
++windows; however, as of as of the end of 2021, a sufficiently recent compiler is used.
++This is because GCC & LLVM support all relevant C11 features with the oldest currently
++used versions, and C17 is just a bugfix for C11, as mentioned above. In short:
+ 
+-===================   ==============   =============================================
+-CPython               MS Visual C++    C Standard
+-===================   ==============   =============================================
+-2.7, 3.0, 3.1, 3.2       9.0           C90
+-3.3, 3.4                10.0           C90 & some of C99
+-3.5, 3.6                14.0           C90 & most of C99
+-3.7, 3.8, 3.9           15.7           Dependent on MSVC version used to build SciPy
+-===================   ==============   =============================================
++================  =======================================================================
++ Date              C Standard
++================  =======================================================================
++ <= 2018           C90
++ 2019              C90 for old code, may consider C99 for new
++ 2020              C99 (no ``<complex.h>``, ``<stdatomic.h>``, ``<threads.h>`` & VLAs)
++ 2021              C17 (no ``<complex.h>``, ``<stdatomic.h>``, ``<threads.h>`` & VLAs)
++ ?                 C23, ``<complex.h>``, ``<stdatomic.h>``, ...
++================  =======================================================================
+ 
+ 
+-C and C++ Language Standards
+-~~~~~~~~~~~~~~~~~~~~~~~~~~~~
++C++ Language Standards
++~~~~~~~~~~~~~~~~~~~~~~
+ 
+-C and C++ language standards for SciPy are generally guidelines
++C++ language standards for SciPy are generally guidelines
+ rather than official decisions. This is particularly true of
+ attempting to predict adoption timelines for newer standards.
+ 
+ ================  =======================================================================
+- Date              C/C++ Standard
++ Date              C++ Standard
+ ================  =======================================================================
+- <= 2018           C90
+- 2019              C90 for old code, may consider C99 for new
+- 2020              C99
++ <= 2019           C++03
+  2020              C++11
+  2021              C++14
+- ?                 C11, C17, C++17, C++20
++ ?                 C++17, C++20, C++23
+ ================  =======================================================================
+ 
+-For C, C11/C17 support will be available as soon as the ``vmImage`` for
+-building SciPy is upgraded to ``windows-2019`` (which is compatible with
+-currently supported CPython versions and ""just"" needs to be executed). This is
+-because GCC & LLVM support all relevant C11 features with the oldest currently
+-used versions, and C17 is just a bugfix for C11, as mentioned above.
+-
+-On the C++ side, since dropping support for Python 2.7, C++11 can be used
+-universally. For C++14, Windows is not a restriction anymore since Visual
+-Studio 15.9 (<-> _MSC_VER 19.16, see [8]_), has full support (same for C++17),
+-see [4]_. However, using C++14 still requires bumping the GCC minimal
+-requirement to 5.x and C++17 will require GCC >= 7 [4]_.
+-Compiler support for C++20 is still under heavy development.
+-
+-.. note::
+-
+-    Developer Note: Some C99 features would be useful for scientific
+-    programming, in particular better support of IEEE 754 [5]_.
+-    SciPy has a small include file ``scipy/_lib/_c99compat.h`` which
+-    provides access to a few functions. Use in conjunction
+-    with ``<numpy/npy_math.h>``.
+-
+-    ========================================= ========================================================
+-     Feature                                  Workaround
+-    ========================================= ========================================================
+-    ``isnan()``, ``isinf()``, ``isfinite()``  Use ``sc_isnan()``, ``sc_isinf()``, ``sc_isfinite()``
+-    ``NAN``                                   Use ``NPY_NAN`` (it is *almost* equivalent)
+-    inline functions                          Make static functions and place in an include .h file
+-    mid-block variable declarations           Declare variables at the top of the block
+-    ========================================= ========================================================
+-
++Since dropping support for Python 2.7, C++11 can be used
++universally, and since dropping Python 3.6, the Visual Studio version
++(that had previously been stuck with 14.0 due to ABI compatibility with
++CPython) has been recent enough to support even C++17.
++
++Since the official builds (see above) use a pretty recent version of LLVM,
++the bottleneck for C++ support is therefore the oldest supported GCC version,
++where SciPy has been constrained mainly by the version in the oldest supported
++manylinux versions & images [14]_.
++
++At the end of 2021 (with the final removal of ``manylinux1`` wheels), SciPy
++now has a minimum GCC requirement of GCC 6.3, which has full C++14 support
++[15]_. This corresponds to the lowest present GCC version in relevant manylinux
++versions - somewhat surprisingly, it is not the oldest remaining
++``manylinux2010`` that is the most restrictive (due to the ABI-compatible
++""RHEL Dev Toolset"" backports, it has GCC 8.3), but actually ``manylinux_2_24``
++that only comes with GCC 6.3 [16]_.
++
++C++17 _language_ support will require GCC >= 7 (released May 2017). As of the
++end of 2021, support for the entirety of the C++17 standard library has not yet
++been completed across all compilers; similarly, support for C++20 and C++23
++is still under heavy development. [15]_
+ 
+ Fortran Compilers
+ ~~~~~~~~~~~~~~~~~
+@@ -223,23 +217,17 @@ flang     A recent version
+ ======== ==================
+ 
+ 
+-Cython Compiler
+-~~~~~~~~~~~~~~~
+-
+-SciPy always requires a recent Cython compiler.
++Cython & Pythran
++~~~~~~~~~~~~~~~~
+ 
+-======== ============ ===============
+- Tool    Tool Version  SciPy version
+-======== ============ ===============
+-Cython     >= 0.29.13  1.4.1
+-Cython     >= 0.29.18  1.5.0
+-======== ============ ===============
++SciPy always requires a recent Cython compiler. Since 1.7, Pythran
++is a build dependency (currently with the possibility to opt out).
+ 
+ 
+ OpenMP support
+ ^^^^^^^^^^^^^^
+ 
+-For various reasons [13]_, SciPy cannot be distributed with built-in OpenMP support.
++For various reasons [17]_, SciPy cannot be distributed with built-in OpenMP support.
+ When using the optional Pythran support, OpenMP-enabled parallel code can be
+ generated when building from source.
+ 
+@@ -254,7 +242,7 @@ OpenBLAS, ATLAS, MKL, BLIS, and reference Netlib libraries are known to work.
+ =============== =====================================================
+ LAPACK           3.4.1
+ BLAS             A recent version of OpenBLAS, MKL or ATLAS.
+-                 The Accelerate BLAS is no longer supported.
++                 The Accelerate BLAS library is no longer supported.
+ =============== =====================================================
+ 
+ 
+@@ -338,22 +326,20 @@ making and distributing a SciPy release.
+ References
+ ----------
+ 
+-.. [1] https://docs.scipy.org/doc/scipy/reference/release.1.2.0.html
+-.. [2] https://python3statement.org
+-.. [3] https://docs.scipy.org/doc/numpy/release.html
+-.. [4] https://en.cppreference.com/w/cpp/compiler_support
+-.. [5] https://en.wikipedia.org/wiki/IEEE_754-1985
+-.. [6] https://blogs.msdn.microsoft.com/vcblog/2013/07/19/c99-library-support-in-visual-studio-2013/
++.. [1] https://numpy.org/neps/nep-0029-deprecation_policy.html
++.. [2] https://numpy.org/doc/stable/release.html
++.. [3] https://scipy.github.io/devdocs/release.html
++.. [4] https://github.com/scipy/oldest-supported-numpy
++.. [5] https://docs.microsoft.com/en-us/azure/devops/pipelines/agents/hosted
++.. [6] https://github.com/MacPython/scipy-wheels
+ .. [7] https://pythondev.readthedocs.io/windows.html#python-and-visual-studio-version-matrix
+ .. [8] https://en.wikipedia.org/wiki/Microsoft_Visual_C%2B%2B#Internal_version_numbering
+-.. [9] https://wiki.python.org/moin/WindowsCompilers
+-.. [10] https://numpy.org/neps/nep-0029-deprecation_policy.html
+-.. [11] https://devblogs.microsoft.com/cppblog/c11-and-c17-standard-support-arriving-in-msvc/
+-.. [12] https://en.wikipedia.org/wiki/C11_%28C_standard_revision%29#Optional_features
+-.. [13] https://github.com/scipy/scipy/issues/10239
+-.. [14] https://docs.microsoft.com/en-us/azure/devops/pipelines/agents/hosted
+-.. [15] https://github.com/MacPython/scipy-wheels
+-.. [16] https://docs.microsoft.com/en-gb/cpp/windows/universal-crt-deployment
+-.. [17] https://discuss.python.org/t/toolchain-upgrade-on-windows/6377/4
+-.. [18] https://scipy.github.io/devdocs/release.html
+-.. [19] https://github.com/scipy/oldest-supported-numpy
++.. [9] https://docs.microsoft.com/en-gb/cpp/windows/universal-crt-deployment
++.. [10] https://discuss.python.org/t/toolchain-upgrade-on-windows/6377/4
++.. [11] https://en.wikipedia.org/wiki/C11_%28C_standard_revision%29#Optional_features
++.. [12] https://devblogs.microsoft.com/cppblog/c11-and-c17-standard-support-arriving-in-msvc/
++.. [13] https://developercommunity.visualstudio.com/t/Support-for-C99-Complex-numbers/1409049?space=8&q=complex
++.. [14] https://github.com/mayeut/pep600_compliance
++.. [15] https://en.cppreference.com/w/cpp/compiler_support
++.. [16] https://github.com/pypa/manylinux/issues/1012
++.. [17] https://github.com/scipy/scipy/issues/10239
+"
+21,"diff --git a/doc/source/dev/roadmap-detailed.rst b/doc/source/dev/roadmap-detailed.rst
+index e3bef5228b10..16de63cd68f4 100644
+--- a/doc/source/dev/roadmap-detailed.rst
++++ b/doc/source/dev/roadmap-detailed.rst
+@@ -68,8 +68,7 @@ Benchmarks
+ ``````````
+ The ``asv``-based benchmark system is in reasonable shape.  It is quite easy to
+ add new benchmarks, however running the benchmarks is not very intuitive.
+-Making this easier is a priority.  In addition, we should run them in our CI
+-(gh-8779 is an ongoing attempt at this).
++Making this easier is a priority.
+ 
+ 
+ Use of Cython
+@@ -205,9 +204,10 @@ misc
+ ``scipy.misc`` will be removed as a public module.  Most functions in it have
+ been moved to another submodule or deprecated.  The few that are left:
+ 
+-- ``info``, ``who`` : these are NumPy functions
+ - ``derivative``, ``central_diff_weight`` : remove, possibly replacing them
+   with more extensive functionality for numerical differentiation.
++- ``ascent``, ``face``, ``electrocardiogram`` : remove or move to the
++  appropriate subpackages (e.g. ``scipy.ndimage``, ``scipy.signal``).
+ 
+ 
+ ndimage
+@@ -256,9 +256,8 @@ Overall this module is in good shape. Two good global optimizers were added in
+ 1.2.0; large-scale optimizers is still a gap that could be filled.  Other
+ things that are needed:
+ 
+-- Many ideas for additional functionality (e.g. integer constraints, sparse
+-  matrix support, performance improvements) in ``linprog``, see
+-  `gh-9269 <https://github.com/scipy/scipy/issues/9269>`__.
++- Many ideas for additional functionality (e.g. integer constraints) in
++  ``linprog``, see `gh-9269 <https://github.com/scipy/scipy/issues/9269>`__.
+ - Add functionality to the benchmark suite to compare results more easily
+   (e.g. with summary plots).
+ - deprecate the ``fmin_*`` functions in the documentation, ``minimize`` is
+@@ -335,7 +334,7 @@ This module is in good shape.
+ 
+ sparse.linalg
+ `````````````
+-Arpack is in good shape.
++ARPACK is in good shape.
+ 
+ isolve:
+ 
+@@ -346,24 +345,18 @@ isolve:
+ 
+ dsolve:
+ 
+-- add sparse Cholesky or incomplete Cholesky
+-- add sparse QR
++- add license-compatible sparse Cholesky or incomplete Cholesky
++- add license-compatible sparse QR
+ - improve interface to SuiteSparse UMFPACK
+ - add interfaces to SuiteSparse CHOLMOD and SPQR
+ 
+-Ideas for new features:
+-
+-- Wrappers for PROPACK for faster sparse SVD computation.
+-
+ 
+ spatial
+ ```````
+-QHull wrappers are in good shape, as is ``cKDTree``.
++QHull wrappers are in good shape, as is ``KDTree``.
+ 
+ Needed:
+ 
+-- ``KDTree`` will be removed, and ``cKDTree`` will be renamed to ``KDTree``
+-  in a backwards-compatible way.
+ - ``distance_wrap.c`` needs to be cleaned up (maybe rewrite in Cython).
+ 
+ 
+@@ -431,10 +424,7 @@ The following improvements will help SciPy better serve this role.
+   - Handle censored data (e.g. merge `gh-13699 <https://github.com/scipy/scipy/pull/13699>`__)
+ 
+ - Implement additional widely used continuous and discrete probability
+-  distributions:
+-
+-  - multivariate t distribution
+-  - mixture distributions
++  distributions, e.g. mixture distributions.
+ 
+ - Improve the core calculations provided by SciPy's probability distributions
+   so they can robustly handle wide ranges of parameter values.  Specifically,
+@@ -444,10 +434,11 @@ The following improvements will help SciPy better serve this role.
+ 
+ In addition, we should:
+ 
++- Consistently handle ``nan_policy`` and ``axis`` arguments in all ``stats``
++  functions (where appropriate).
+ - Continue work on making the function signatures of ``stats`` and
+   ``stats.mstats`` more consistent, and add tests to ensure that that
+   remains the case.
+-- Improve statistical tests: consistently provide options for one- and
+-  two-sided alternative hypotheses where applicable, return confidence
+-  intervals for the test statistic, and implement exact p-value calculations -
+-  considering the possibility of ties - where computationally feasible.
++- Improve statistical tests: return confidence intervals for the test
++  statistic, and implement exact p-value calculations - considering the
++  possibility of ties - where computationally feasible.
+"
+22,"diff --git a/scipy/special/setup.py b/scipy/special/setup.py
+index c0c4b8d135c0..9559afb8a9c7 100644
+--- a/scipy/special/setup.py
++++ b/scipy/special/setup.py
+@@ -6,7 +6,8 @@
+ import numpy
+ from numpy.distutils.misc_util import get_numpy_include_dirs, get_info
+ 
+-from scipy._build_utils.compiler_helper import set_c_flags_hook
++from scipy._build_utils.compiler_helper import (set_c_flags_hook,
++                                                set_cxx_flags_hook)
+ 
+ 
+ def configuration(parent_package='',top_path=None):
+@@ -96,12 +97,13 @@ def configuration(parent_package='',top_path=None):
+                       '_wright.cxx', 'wright.cc']
+     ufuncs_cxx_dep = (headers + ufuncs_cxx_src + cephes_src
+                       + ['*.hh'])
+-    config.add_extension('_ufuncs_cxx',
+-                         sources=ufuncs_cxx_src,
+-                         depends=ufuncs_cxx_dep,
+-                         include_dirs=[curdir] + inc_dirs,
+-                         define_macros=define_macros,
+-                         extra_info=get_info(""npymath""))
++    ufuncs_cxx_ext = config.add_extension('_ufuncs_cxx',
++                                          sources=ufuncs_cxx_src,
++                                          depends=ufuncs_cxx_dep,
++                                          include_dirs=[curdir] + inc_dirs,
++                                          define_macros=define_macros,
++                                          extra_info=get_info(""npymath""))
++    ufuncs_cxx_ext._pre_build_hook = set_cxx_flags_hook
+ 
+     cfg = combine_dict(lapack_opt, include_dirs=inc_dirs)
+     config.add_extension('_ellip_harm_2',
+"
+23,"diff --git a/scipy/signal/_filter_design.py b/scipy/signal/_filter_design.py
+index 76a5dc71d82f..edbe9b915d1a 100644
+--- a/scipy/signal/_filter_design.py
++++ b/scipy/signal/_filter_design.py
+@@ -2862,10 +2862,10 @@ def butter(N, Wn, btype='low', analog=False, output='ba', fs=None):
+         For a Butterworth filter, this is the point at which the gain
+         drops to 1/sqrt(2) that of the passband (the ""-3 dB point"").
+ 
+-        For digital filters, `Wn` are in the same units as `fs`.  By default,
+-        `fs` is 2 half-cycles/sample, so these are normalized from 0 to 1,
+-        where 1 is the Nyquist frequency. (`Wn` is thus in
+-        half-cycles / sample.)
++        For digital filters, if `fs` is not specified, `Wn` units are
++        normalized from 0 to 1, where 1 is the Nyquist frequency (`Wn` is
++        thus in half cycles / sample and defined as 2*critical frequencies
++        / `fs`). If `fs` is specified, `Wn` is in the same units as `fs`.
+ 
+         For analog filters, `Wn` is an angular frequency (e.g. rad/s).
+     btype : {'lowpass', 'highpass', 'bandpass', 'bandstop'}, optional
+"
+24,"diff --git a/.gitignore b/.gitignore
+index 8939a7ae497e..e1047b01898e 100644
+--- a/.gitignore
++++ b/.gitignore
+@@ -227,19 +227,19 @@ scipy/sparse/csgraph/_matching.c
+ scipy/sparse/csgraph/_reordering.c
+ scipy/sparse/linalg/dsolve/umfpack/_umfpack.py
+ scipy/sparse/linalg/dsolve/umfpack/_umfpack_wrap.c
+-scipy/sparse/linalg/eigen/arpack/_arpack-f2pywrappers.f
+-scipy/sparse/linalg/eigen/arpack/_arpackmodule.c
+-scipy/sparse/linalg/eigen/arpack/arpack.pyf
+-scipy/sparse/linalg/isolve/iterative/BiCGREVCOM.f
+-scipy/sparse/linalg/isolve/iterative/BiCGSTABREVCOM.f
+-scipy/sparse/linalg/isolve/iterative/CGREVCOM.f
+-scipy/sparse/linalg/isolve/iterative/CGSREVCOM.f
+-scipy/sparse/linalg/isolve/iterative/GMRESREVCOM.f
+-scipy/sparse/linalg/isolve/iterative/QMRREVCOM.f
+-scipy/sparse/linalg/isolve/iterative/STOPTEST2.f
+-scipy/sparse/linalg/isolve/iterative/_iterative.pyf
+-scipy/sparse/linalg/isolve/iterative/_iterativemodule.c
+-scipy/sparse/linalg/isolve/iterative/getbreak.f
++scipy/sparse/linalg/_eigen/arpack/_arpack-f2pywrappers.f
++scipy/sparse/linalg/_eigen/arpack/_arpackmodule.c
++scipy/sparse/linalg/_eigen/arpack/arpack.pyf
++scipy/sparse/linalg/_isolve/iterative/BiCGREVCOM.f
++scipy/sparse/linalg/_isolve/iterative/BiCGSTABREVCOM.f
++scipy/sparse/linalg/_isolve/iterative/CGREVCOM.f
++scipy/sparse/linalg/_isolve/iterative/CGSREVCOM.f
++scipy/sparse/linalg/_isolve/iterative/GMRESREVCOM.f
++scipy/sparse/linalg/_isolve/iterative/QMRREVCOM.f
++scipy/sparse/linalg/_isolve/iterative/STOPTEST2.f
++scipy/sparse/linalg/_isolve/iterative/_iterative.pyf
++scipy/sparse/linalg/_isolve/iterative/_iterativemodule.c
++scipy/sparse/linalg/_isolve/iterative/getbreak.f
+ scipy/sparse/sparsetools/bsr_impl.h
+ scipy/sparse/sparsetools/csc_impl.h
+ scipy/sparse/sparsetools/csr_impl.h
+"
+25,"diff --git a/scipy/optimize/_optimize.py b/scipy/optimize/_optimize.py
+index 50799a65420d..eaae17b5dfa9 100644
+--- a/scipy/optimize/_optimize.py
++++ b/scipy/optimize/_optimize.py
+@@ -908,12 +908,13 @@ def _minimize_neldermead(func, x0, args=(), callback=None,
+ 
+ 
+ def approx_fprime(xk, f, epsilon=_epsilon, *args):
+-    """"""Compute finite difference approximation of the derivatives of a
+-    scalar or vector-valued function
++    """"""Finite difference approximation of the derivatives of a
++    scalar or vector-valued function.
+ 
+-    If a function maps from R^n to R^m, its derivatives form m-by-n matrix
+-    called the Jacobian, where an element (i, j) is a partial derivative of
+-    f[i] with respect to x[j].
++    If a function maps from :math:`R^n` to :math:`R^m`, its derivatives form
++    an m-by-n matrix
++    called the Jacobian, where an element :math:`(i, j)` is a partial
++    derivative of f[i] with respect to ``xk[j]``.
+ 
+     Parameters
+     ----------
+@@ -922,13 +923,13 @@ def approx_fprime(xk, f, epsilon=_epsilon, *args):
+     f : callable
+         Function of which to estimate the derivatives of. Has the signature
+         ``f(xk, *args)`` where `xk` is the argument in the form of a 1-D array
+-        and `args` is a  tuple of any additional fixed parameters needed to
+-        completely specify the function. The argument xk passed to this
+-        function is ndarray of shape (n,) (never a scalar even if n=1).
+-        It must return 1-D array_like of shape (m,) or a scalar.
++        and `args` is a tuple of any additional fixed parameters needed to
++        completely specify the function. The argument `xk` passed to this
++        function is an ndarray of shape (n,) (never a scalar even if n=1).
++        It must return a 1-D array_like of shape (m,) or a scalar.
+ 
+         .. versionchanged:: 1.8.0
+-            `f` is now able to return a 1-D array-like, with the (m, n)
++            `f` is now able to return a 1-D array-like, with the :math:`(m, n)`
+             Jacobian being estimated.
+ 
+     epsilon : {float, array_like}, optional
+"
+26,"diff --git a/scipy/spatial/distance.py b/scipy/spatial/distance.py
+index b2c08f09ee34..7e2cc9d1506f 100644
+--- a/scipy/spatial/distance.py
++++ b/scipy/spatial/distance.py
+@@ -428,7 +428,7 @@ def minkowski(u, v, p=2, w=None):
+ 
+     .. math::
+ 
+-       {||u-v||}_p = (\\sum{|u_i - v_i|^p})^{1/p}.
++       {\\|u-v\\|}_p = (\\sum{|u_i - v_i|^p})^{1/p}.
+ 
+ 
+        \\left(\\sum{w_i(|(u_i - v_i)|^p)}\\right)^{1/p}.
+@@ -440,9 +440,9 @@ def minkowski(u, v, p=2, w=None):
+     v : (N,) array_like
+         Input array.
+     p : scalar
+-        The order of the norm of the difference :math:`{||u-v||}_p`. Note that
+-        for 0 < p < 1, the triangle inequality only holds with an additional
+-        multiplicative factor, i.e. it is only a quasi-metric.
++        The order of the norm of the difference :math:`{\\|u-v\\|}_p`. Note
++        that for :math:`0 < p < 1`, the triangle inequality only holds with
++        an additional multiplicative factor, i.e. it is only a quasi-metric.
+     w : (N,) array_like, optional
+         The weights for each value in `u` and `v`. Default is None,
+         which gives each value a weight of 1.0
+@@ -498,7 +498,7 @@ def euclidean(u, v, w=None):
+ 
+     .. math::
+ 
+-       {||u-v||}_2
++       {\\|u-v\\|}_2
+ 
+        \\left(\\sum{(w_i |(u_i - v_i)|^2)}\\right)^{1/2}
+ 
+@@ -537,7 +537,7 @@ def sqeuclidean(u, v, w=None):
+ 
+     .. math::
+ 
+-       {||u-v||}_2^2
++       {\\|u-v\\|}_2^2
+ 
+        \\left(\\sum{(w_i |(u_i - v_i)|^2)}\\right)
+ 
+@@ -593,7 +593,7 @@ def correlation(u, v, w=None, centered=True):
+     .. math::
+ 
+         1 - \\frac{(u - \\bar{u}) \\cdot (v - \\bar{v})}
+-                  {{||(u - \\bar{u})||}_2 {||(v - \\bar{v})||}_2}
++                  {{\\|(u - \\bar{u})\\|}_2 {\\|(v - \\bar{v})\\|}_2}
+ 
+     where :math:`\\bar{u}` is the mean of the elements of `u`
+     and :math:`x \\cdot y` is the dot product of :math:`x` and :math:`y`.
+@@ -642,7 +642,7 @@ def cosine(u, v, w=None):
+     .. math::
+ 
+         1 - \\frac{u \\cdot v}
+-                  {||u||_2 ||v||_2}.
++                  {\\|u\\|_2 \\|v\\|_2}.
+ 
+     where :math:`u \\cdot v` is the dot product of :math:`u` and
+     :math:`v`.
+@@ -2033,7 +2033,7 @@ def pdist(X, metric='euclidean', *, out=None, **kwargs):
+     2. ``Y = pdist(X, 'minkowski', p=2.)``
+ 
+        Computes the distances using the Minkowski distance
+-       :math:`||u-v||_p` (:math:`p`-norm) where :math:`p > 0` (note
++       :math:`\\|u-v\\|_p` (:math:`p`-norm) where :math:`p > 0` (note
+        that this is only a quasi-metric if :math:`0 < p < 1`).
+ 
+     3. ``Y = pdist(X, 'cityblock')``
+@@ -2057,7 +2057,7 @@ def pdist(X, metric='euclidean', *, out=None, **kwargs):
+ 
+     5. ``Y = pdist(X, 'sqeuclidean')``
+ 
+-       Computes the squared Euclidean distance :math:`||u-v||_2^2` between
++       Computes the squared Euclidean distance :math:`\\|u-v\\|_2^2` between
+        the vectors.
+ 
+     6. ``Y = pdist(X, 'cosine')``
+@@ -2067,9 +2067,9 @@ def pdist(X, metric='euclidean', *, out=None, **kwargs):
+        .. math::
+ 
+           1 - \\frac{u \\cdot v}
+-                   {{||u||}_2 {||v||}_2}
++                   {{\\|u\\|}_2 {\\|v\\|}_2}
+ 
+-       where :math:`||*||_2` is the 2-norm of its argument ``*``, and
++       where :math:`\\|*\\|_2` is the 2-norm of its argument ``*``, and
+        :math:`u \\cdot v` is the dot product of ``u`` and ``v``.
+ 
+     7. ``Y = pdist(X, 'correlation')``
+@@ -2079,7 +2079,7 @@ def pdist(X, metric='euclidean', *, out=None, **kwargs):
+        .. math::
+ 
+           1 - \\frac{(u - \\bar{u}) \\cdot (v - \\bar{v})}
+-                   {{||(u - \\bar{u})||}_2 {||(v - \\bar{v})||}_2}
++                   {{\\|(u - \\bar{u})\\|}_2 {\\|(v - \\bar{v})\\|}_2}
+ 
+        where :math:`\\bar{v}` is the mean of the elements of vector v,
+        and :math:`x \\cdot y` is the dot product of :math:`x` and :math:`y`.
+@@ -2691,7 +2691,7 @@ def cdist(XA, XB, metric='euclidean', *, out=None, **kwargs):
+     2. ``Y = cdist(XA, XB, 'minkowski', p=2.)``
+ 
+        Computes the distances using the Minkowski distance
+-       :math:`||u-v||_p` (:math:`p`-norm) where :math:`p > 0` (note
++       :math:`\\|u-v\\|_p` (:math:`p`-norm) where :math:`p > 0` (note
+        that this is only a quasi-metric if :math:`0 < p < 1`).
+ 
+     3. ``Y = cdist(XA, XB, 'cityblock')``
+@@ -2714,7 +2714,7 @@ def cdist(XA, XB, metric='euclidean', *, out=None, **kwargs):
+ 
+     5. ``Y = cdist(XA, XB, 'sqeuclidean')``
+ 
+-       Computes the squared Euclidean distance :math:`||u-v||_2^2` between
++       Computes the squared Euclidean distance :math:`\\|u-v\\|_2^2` between
+        the vectors.
+ 
+     6. ``Y = cdist(XA, XB, 'cosine')``
+@@ -2724,9 +2724,9 @@ def cdist(XA, XB, metric='euclidean', *, out=None, **kwargs):
+        .. math::
+ 
+           1 - \\frac{u \\cdot v}
+-                   {{||u||}_2 {||v||}_2}
++                   {{\\|u\\|}_2 {\\|v\\|}_2}
+ 
+-       where :math:`||*||_2` is the 2-norm of its argument ``*``, and
++       where :math:`\\|*\\|_2` is the 2-norm of its argument ``*``, and
+        :math:`u \\cdot v` is the dot product of :math:`u` and :math:`v`.
+ 
+     7. ``Y = cdist(XA, XB, 'correlation')``
+@@ -2736,7 +2736,7 @@ def cdist(XA, XB, metric='euclidean', *, out=None, **kwargs):
+        .. math::
+ 
+           1 - \\frac{(u - \\bar{u}) \\cdot (v - \\bar{v})}
+-                   {{||(u - \\bar{u})||}_2 {||(v - \\bar{v})||}_2}
++                   {{\\|(u - \\bar{u})\\|}_2 {\\|(v - \\bar{v})\\|}_2}
+ 
+        where :math:`\\bar{v}` is the mean of the elements of vector v,
+        and :math:`x \\cdot y` is the dot product of :math:`x` and :math:`y`.
+"
+27,"diff --git a/scipy/spatial/tests/test_distance.py b/scipy/spatial/tests/test_distance.py
+index 4c56f90ddcaf..50ebfc5ca95e 100644
+--- a/scipy/spatial/tests/test_distance.py
++++ b/scipy/spatial/tests/test_distance.py
+@@ -449,12 +449,12 @@ def test_cdist_euclidean_random_unicode(self):
+     @pytest.mark.parametrize(""p"", [0.1, 0.25, 1.0, 1.23,
+                                    2.0, 3.8, 4.6, np.inf])
+     def test_cdist_minkowski_random(self, p):
+-        eps = 1e-07
++        eps = 1e-13
+         X1 = eo['cdist-X1']
+         X2 = eo['cdist-X2']
+         Y1 = wcdist_no_const(X1, X2, 'minkowski', p=p)
+         Y2 = wcdist_no_const(X1, X2, 'test_minkowski', p=p)
+-        _assert_within_tol(Y1, Y2, eps, verbose > 2)
++        _assert_within_tol(Y1, Y2, atol=0, rtol=eps, verbose_=verbose > 2)
+ 
+     def test_cdist_cosine_random(self):
+         eps = 1e-07
+@@ -960,11 +960,11 @@ def test_pdist_correlation_iris_nonC(self):
+ 
+     @pytest.mark.parametrize(""p"", [0.1, 0.25, 1.0, 2.0, 3.2, np.inf])
+     def test_pdist_minkowski_random_p(self, p):
+-        eps = 1e-05
++        eps = 1e-13
+         X = eo['pdist-double-inp']
+         Y1 = wpdist_no_const(X, 'minkowski', p=p)
+         Y2 = wpdist_no_const(X, 'test_minkowski', p=p)
+-        _assert_within_tol(Y1, Y2, eps)
++        _assert_within_tol(Y1, Y2, atol=0, rtol=eps)
+ 
+     def test_pdist_minkowski_random(self):
+         eps = 1e-05
+"
+28,"diff --git a/scipy/spatial/tests/test_distance.py b/scipy/spatial/tests/test_distance.py
+index 7a4e5e9a04c7..dcfe2b7fa570 100644
+--- a/scipy/spatial/tests/test_distance.py
++++ b/scipy/spatial/tests/test_distance.py
+@@ -218,16 +218,6 @@ def _weight_masked(arrays, weights, axis):
+     return weights
+ 
+ 
+-def within_tol(a, b, tol):
+-    return np.abs(a - b).max() < tol
+-
+-
+-def _assert_within_tol(a, b, atol=0, rtol=0, verbose_=False):
+-    if verbose_:
+-        print(np.abs(a - b).max())
+-    assert_allclose(a, b, rtol=rtol, atol=atol)
+-
+-
+ def _rand_split(arrays, weights, axis, split_per, seed=None):
+     # inverse operation for stats.collapse_weights
+     weights = np.array(weights, dtype=np.float64)  # modified inplace; need a copy
+@@ -444,7 +434,7 @@ def test_cdist_euclidean_random_unicode(self):
+         X2 = eo['cdist-X2']
+         Y1 = wcdist_no_const(X1, X2, 'euclidean')
+         Y2 = wcdist_no_const(X1, X2, 'test_euclidean')
+-        _assert_within_tol(Y1, Y2, rtol=eps, verbose_=verbose > 2)
++        assert_allclose(Y1, Y2, rtol=eps, verbose=verbose > 2)
+ 
+     @pytest.mark.parametrize(""p"", [1.0, 1.23, 2.0, 3.8, 4.6, np.inf])
+     def test_cdist_minkowski_random(self, p):
+@@ -453,7 +443,7 @@ def test_cdist_minkowski_random(self, p):
+         X2 = eo['cdist-X2']
+         Y1 = wcdist_no_const(X1, X2, 'minkowski', p=p)
+         Y2 = wcdist_no_const(X1, X2, 'test_minkowski', p=p)
+-        _assert_within_tol(Y1, Y2, rtol=eps, verbose_=verbose > 2)
++        assert_allclose(Y1, Y2, rtol=eps, verbose=verbose > 2)
+ 
+     def test_cdist_cosine_random(self):
+         eps = 1e-14
+@@ -467,7 +457,7 @@ def norms(X):
+ 
+         Y2 = 1 - np.dot((X1 / norms(X1)), (X2 / norms(X2)).T)
+ 
+-        _assert_within_tol(Y1, Y2, rtol=eps, verbose_=verbose > 2)
++        assert_allclose(Y1, Y2, rtol=eps, verbose=verbose > 2)
+ 
+     def test_cdist_mahalanobis(self):
+         # 1-dimensional observations
+@@ -515,8 +505,8 @@ def _check_calling_conventions(self, X1, X2, metric, eps=1e-07, **kwargs):
+             assert_raises(e_cls, cdist, X1, X2, metric=eval(metric), **kwargs)
+             assert_raises(e_cls, cdist, X1, X2, metric=""test_"" + metric, **kwargs)
+         else:
+-            _assert_within_tol(y1, y2, rtol=eps, verbose_=verbose > 2)
+-            _assert_within_tol(y1, y3, rtol=eps, verbose_=verbose > 2)
++            assert_allclose(y1, y2, rtol=eps, verbose=verbose > 2)
++            assert_allclose(y1, y3, rtol=eps, verbose=verbose > 2)
+ 
+     def test_cdist_calling_conventions(self):
+         # Ensures that specifying the metric with a str or scipy function
+@@ -575,7 +565,7 @@ def test_cdist_dtype_equivalence(self):
+                 else:
+                     for new_type in test[1]:
+                         y2 = cdist(new_type(X1), new_type(X2), metric=metric)
+-                        _assert_within_tol(y1, y2, rtol=eps, verbose_=verbose > 2)
++                        assert_allclose(y1, y2, rtol=eps, verbose=verbose > 2)
+ 
+     def test_cdist_out(self):
+         # Test that out parameter works properly
+@@ -592,7 +582,7 @@ def test_cdist_out(self):
+             Y1 = cdist(X1, X2, metric, **kwargs)
+             Y2 = cdist(X1, X2, metric, out=out1, **kwargs)
+             # test that output is numerically equivalent
+-            _assert_within_tol(Y1, Y2, rtol=eps, verbose_=verbose > 2)
++            assert_allclose(Y1, Y2, rtol=eps, verbose=verbose > 2)
+             # test that Y_test1 and out1 are the same object
+             assert_(Y2 is out1)
+             # test for incorrect shape
+@@ -638,7 +628,7 @@ def test_striding(self):
+             Y1 = cdist(X1, X2, metric, **kwargs)
+             Y2 = cdist(X1_copy, X2_copy, metric, **kwargs)
+             # test that output is numerically equivalent
+-            _assert_within_tol(Y1, Y2, rtol=eps, verbose_=verbose > 2)
++            assert_allclose(Y1, Y2, rtol=eps, verbose=verbose > 2)
+ 
+     def test_cdist_refcount(self):
+         for metric in _METRICS_NAMES:
+@@ -710,28 +700,28 @@ def test_pdist_euclidean_random(self):
+         X = eo['pdist-double-inp']
+         Y_right = eo['pdist-euclidean']
+         Y_test1 = wpdist_no_const(X, 'euclidean')
+-        _assert_within_tol(Y_test1, Y_right, rtol=eps)
++        assert_allclose(Y_test1, Y_right, rtol=eps)
+ 
+     def test_pdist_euclidean_random_u(self):
+         eps = 1e-07
+         X = eo['pdist-double-inp']
+         Y_right = eo['pdist-euclidean']
+         Y_test1 = wpdist_no_const(X, 'euclidean')
+-        _assert_within_tol(Y_test1, Y_right, rtol=eps)
++        assert_allclose(Y_test1, Y_right, rtol=eps)
+ 
+     def test_pdist_euclidean_random_float32(self):
+         eps = 1e-07
+         X = np.float32(eo['pdist-double-inp'])
+         Y_right = eo['pdist-euclidean']
+         Y_test1 = wpdist_no_const(X, 'euclidean')
+-        _assert_within_tol(Y_test1, Y_right, rtol=eps)
++        assert_allclose(Y_test1, Y_right, rtol=eps)
+ 
+     def test_pdist_euclidean_random_nonC(self):
+         eps = 1e-07
+         X = eo['pdist-double-inp']
+         Y_right = eo['pdist-euclidean']
+         Y_test2 = wpdist_no_const(X, 'test_euclidean')
+-        _assert_within_tol(Y_test2, Y_right, rtol=eps)
++        assert_allclose(Y_test2, Y_right, rtol=eps)
+ 
+     @pytest.mark.slow
+     def test_pdist_euclidean_iris_double(self):
+@@ -739,7 +729,7 @@ def test_pdist_euclidean_iris_double(self):
+         X = eo['iris']
+         Y_right = eo['pdist-euclidean-iris']
+         Y_test1 = wpdist_no_const(X, 'euclidean')
+-        _assert_within_tol(Y_test1, Y_right, rtol=eps)
++        assert_allclose(Y_test1, Y_right, rtol=eps)
+ 
+     @pytest.mark.slow
+     def test_pdist_euclidean_iris_float32(self):
+@@ -747,7 +737,7 @@ def test_pdist_euclidean_iris_float32(self):
+         X = np.float32(eo['iris'])
+         Y_right = eo['pdist-euclidean-iris']
+         Y_test1 = wpdist_no_const(X, 'euclidean')
+-        _assert_within_tol(Y_test1, Y_right, rtol=eps, verbose_=verbose > 2)
++        assert_allclose(Y_test1, Y_right, rtol=eps, verbose=verbose > 2)
+ 
+     @pytest.mark.slow
+     def test_pdist_euclidean_iris_nonC(self):
+@@ -757,26 +747,26 @@ def test_pdist_euclidean_iris_nonC(self):
+         X = eo['iris']
+         Y_right = eo['pdist-euclidean-iris']
+         Y_test2 = wpdist_no_const(X, 'test_euclidean')
+-        _assert_within_tol(Y_test2, Y_right, rtol=eps)
++        assert_allclose(Y_test2, Y_right, rtol=eps)
+ 
+     def test_pdist_seuclidean_random(self):
+         eps = 1e-7
+         X = eo['pdist-double-inp']
+         Y_right = eo['pdist-seuclidean']
+         Y_test1 = pdist(X, 'seuclidean')
+-        _assert_within_tol(Y_test1, Y_right, rtol=eps)
++        assert_allclose(Y_test1, Y_right, rtol=eps)
+ 
+     def test_pdist_seuclidean_random_float32(self):
+         eps = 1e-7
+         X = np.float32(eo['pdist-double-inp'])
+         Y_right = eo['pdist-seuclidean']
+         Y_test1 = pdist(X, 'seuclidean')
+-        _assert_within_tol(Y_test1, Y_right, rtol=eps)
++        assert_allclose(Y_test1, Y_right, rtol=eps)
+ 
+         # Check no error is raise when V has float32 dtype (#11171).
+         V = np.var(X, axis=0, ddof=1)
+         Y_test2 = pdist(X, 'seuclidean', V=V)
+-        _assert_within_tol(Y_test2, Y_right, rtol=eps)
++        assert_allclose(Y_test2, Y_right, rtol=eps)
+ 
+     def test_pdist_seuclidean_random_nonC(self):
+         # Test pdist(X, 'test_sqeuclidean') [the non-C implementation]
+@@ -784,14 +774,14 @@ def test_pdist_seuclidean_random_nonC(self):
+         X = eo['pdist-double-inp']
+         Y_right = eo['pdist-seuclidean']
+         Y_test2 = pdist(X, 'test_seuclidean')
+-        _assert_within_tol(Y_test2, Y_right, rtol=eps)
++        assert_allclose(Y_test2, Y_right, rtol=eps)
+ 
+     def test_pdist_seuclidean_iris(self):
+         eps = 1e-7
+         X = eo['iris']
+         Y_right = eo['pdist-seuclidean-iris']
+         Y_test1 = pdist(X, 'seuclidean')
+-        _assert_within_tol(Y_test1, Y_right, rtol=eps)
++        assert_allclose(Y_test1, Y_right, rtol=eps)
+ 
+     def test_pdist_seuclidean_iris_float32(self):
+         # Tests pdist(X, 'seuclidean') on the Iris data set (float32).
+@@ -799,7 +789,7 @@ def test_pdist_seuclidean_iris_float32(self):
+         X = np.float32(eo['iris'])
+         Y_right = eo['pdist-seuclidean-iris']
+         Y_test1 = pdist(X, 'seuclidean')
+-        _assert_within_tol(Y_test1, Y_right, rtol=eps)
++        assert_allclose(Y_test1, Y_right, rtol=eps)
+ 
+     def test_pdist_seuclidean_iris_nonC(self):
+         # Test pdist(X, 'test_seuclidean') [the non-C implementation] on the
+@@ -808,21 +798,21 @@ def test_pdist_seuclidean_iris_nonC(self):
+         X = eo['iris']
+         Y_right = eo['pdist-seuclidean-iris']
+         Y_test2 = pdist(X, 'test_seuclidean')
+-        _assert_within_tol(Y_test2, Y_right, rtol=eps)
++        assert_allclose(Y_test2, Y_right, rtol=eps)
+ 
+     def test_pdist_cosine_random(self):
+         eps = 1e-7
+         X = eo['pdist-double-inp']
+         Y_right = eo['pdist-cosine']
+         Y_test1 = wpdist(X, 'cosine')
+-        _assert_within_tol(Y_test1, Y_right, rtol=eps)
++        assert_allclose(Y_test1, Y_right, rtol=eps)
+ 
+     def test_pdist_cosine_random_float32(self):
+         eps = 1e-7
+         X = np.float32(eo['pdist-double-inp'])
+         Y_right = eo['pdist-cosine']
+         Y_test1 = wpdist(X, 'cosine')
+-        _assert_within_tol(Y_test1, Y_right, rtol=eps)
++        assert_allclose(Y_test1, Y_right, rtol=eps)
+ 
+     def test_pdist_cosine_random_nonC(self):
+         # Test pdist(X, 'test_cosine') [the non-C implementation]
+@@ -830,7 +820,7 @@ def test_pdist_cosine_random_nonC(self):
+         X = eo['pdist-double-inp']
+         Y_right = eo['pdist-cosine']
+         Y_test2 = wpdist(X, 'test_cosine')
+-        _assert_within_tol(Y_test2, Y_right, rtol=eps)
++        assert_allclose(Y_test2, Y_right, rtol=eps)
+ 
+     @pytest.mark.slow
+     def test_pdist_cosine_iris(self):
+@@ -838,7 +828,7 @@ def test_pdist_cosine_iris(self):
+         X = eo['iris']
+         Y_right = eo['pdist-cosine-iris']
+         Y_test1 = wpdist(X, 'cosine')
+-        _assert_within_tol(Y_test1, Y_right, rtol=eps)
++        assert_allclose(Y_test1, Y_right, rtol=eps)
+ 
+     @pytest.mark.slow
+     def test_pdist_cosine_iris_float32(self):
+@@ -846,7 +836,7 @@ def test_pdist_cosine_iris_float32(self):
+         X = np.float32(eo['iris'])
+         Y_right = eo['pdist-cosine-iris']
+         Y_test1 = wpdist(X, 'cosine')
+-        _assert_within_tol(Y_test1, Y_right, rtol=eps, verbose_=verbose > 2)
++        assert_allclose(Y_test1, Y_right, rtol=eps, verbose=verbose > 2)
+ 
+     @pytest.mark.slow
+     def test_pdist_cosine_iris_nonC(self):
+@@ -854,7 +844,7 @@ def test_pdist_cosine_iris_nonC(self):
+         X = eo['iris']
+         Y_right = eo['pdist-cosine-iris']
+         Y_test2 = wpdist(X, 'test_cosine')
+-        _assert_within_tol(Y_test2, Y_right, rtol=eps)
++        assert_allclose(Y_test2, Y_right, rtol=eps)
+ 
+     def test_pdist_cosine_bounds(self):
+         # Test adapted from @joernhees's example at gh-5208: case where
+@@ -870,21 +860,21 @@ def test_pdist_cityblock_random(self):
+         X = eo['pdist-double-inp']
+         Y_right = eo['pdist-cityblock']
+         Y_test1 = wpdist_no_const(X, 'cityblock')
+-        _assert_within_tol(Y_test1, Y_right, rtol=eps)
++        assert_allclose(Y_test1, Y_right, rtol=eps)
+ 
+     def test_pdist_cityblock_random_float32(self):
+         eps = 1e-7
+         X = np.float32(eo['pdist-double-inp'])
+         Y_right = eo['pdist-cityblock']
+         Y_test1 = wpdist_no_const(X, 'cityblock')
+-        _assert_within_tol(Y_test1, Y_right, rtol=eps)
++        assert_allclose(Y_test1, Y_right, rtol=eps)
+ 
+     def test_pdist_cityblock_random_nonC(self):
+         eps = 1e-7
+         X = eo['pdist-double-inp']
+         Y_right = eo['pdist-cityblock']
+         Y_test2 = wpdist_no_const(X, 'test_cityblock')
+-        _assert_within_tol(Y_test2, Y_right, rtol=eps)
++        assert_allclose(Y_test2, Y_right, rtol=eps)
+ 
+     @pytest.mark.slow
+     def test_pdist_cityblock_iris(self):
+@@ -892,7 +882,7 @@ def test_pdist_cityblock_iris(self):
+         X = eo['iris']
+         Y_right = eo['pdist-cityblock-iris']
+         Y_test1 = wpdist_no_const(X, 'cityblock')
+-        _assert_within_tol(Y_test1, Y_right, rtol=eps)
++        assert_allclose(Y_test1, Y_right, rtol=eps)
+ 
+     @pytest.mark.slow
+     def test_pdist_cityblock_iris_float32(self):
+@@ -900,7 +890,7 @@ def test_pdist_cityblock_iris_float32(self):
+         X = np.float32(eo['iris'])
+         Y_right = eo['pdist-cityblock-iris']
+         Y_test1 = wpdist_no_const(X, 'cityblock')
+-        _assert_within_tol(Y_test1, Y_right, rtol=eps, verbose_=verbose > 2)
++        assert_allclose(Y_test1, Y_right, rtol=eps, verbose=verbose > 2)
+ 
+     @pytest.mark.slow
+     def test_pdist_cityblock_iris_nonC(self):
+@@ -910,28 +900,28 @@ def test_pdist_cityblock_iris_nonC(self):
+         X = eo['iris']
+         Y_right = eo['pdist-cityblock-iris']
+         Y_test2 = wpdist_no_const(X, 'test_cityblock')
+-        _assert_within_tol(Y_test2, Y_right, rtol=eps)
++        assert_allclose(Y_test2, Y_right, rtol=eps)
+ 
+     def test_pdist_correlation_random(self):
+         eps = 1e-7
+         X = eo['pdist-double-inp']
+         Y_right = eo['pdist-correlation']
+         Y_test1 = wpdist(X, 'correlation')
+-        _assert_within_tol(Y_test1, Y_right, rtol=eps)
++        assert_allclose(Y_test1, Y_right, rtol=eps)
+ 
+     def test_pdist_correlation_random_float32(self):
+         eps = 1e-7
+         X = np.float32(eo['pdist-double-inp'])
+         Y_right = eo['pdist-correlation']
+         Y_test1 = wpdist(X, 'correlation')
+-        _assert_within_tol(Y_test1, Y_right, rtol=eps)
++        assert_allclose(Y_test1, Y_right, rtol=eps)
+ 
+     def test_pdist_correlation_random_nonC(self):
+         eps = 1e-7
+         X = eo['pdist-double-inp']
+         Y_right = eo['pdist-correlation']
+         Y_test2 = wpdist(X, 'test_correlation')
+-        _assert_within_tol(Y_test2, Y_right, rtol=eps)
++        assert_allclose(Y_test2, Y_right, rtol=eps)
+ 
+     @pytest.mark.slow
+     def test_pdist_correlation_iris(self):
+@@ -939,7 +929,7 @@ def test_pdist_correlation_iris(self):
+         X = eo['iris']
+         Y_right = eo['pdist-correlation-iris']
+         Y_test1 = wpdist(X, 'correlation')
+-        _assert_within_tol(Y_test1, Y_right, rtol=eps)
++        assert_allclose(Y_test1, Y_right, rtol=eps)
+ 
+     @pytest.mark.slow
+     def test_pdist_correlation_iris_float32(self):
+@@ -947,7 +937,7 @@ def test_pdist_correlation_iris_float32(self):
+         X = eo['iris']
+         Y_right = np.float32(eo['pdist-correlation-iris'])
+         Y_test1 = wpdist(X, 'correlation')
+-        _assert_within_tol(Y_test1, Y_right, rtol=eps, verbose_=verbose > 2)
++        assert_allclose(Y_test1, Y_right, rtol=eps, verbose=verbose > 2)
+ 
+     @pytest.mark.slow
+     def test_pdist_correlation_iris_nonC(self):
+@@ -955,7 +945,7 @@ def test_pdist_correlation_iris_nonC(self):
+         X = eo['iris']
+         Y_right = eo['pdist-correlation-iris']
+         Y_test2 = wpdist(X, 'test_correlation')
+-        _assert_within_tol(Y_test2, Y_right, rtol=eps)
++        assert_allclose(Y_test2, Y_right, rtol=eps)
+ 
+     @pytest.mark.parametrize(""p"", [1.0, 2.0, 3.2, np.inf])
+     def test_pdist_minkowski_random_p(self, p):
+@@ -963,28 +953,28 @@ def test_pdist_minkowski_random_p(self, p):
+         X = eo['pdist-double-inp']
+         Y1 = wpdist_no_const(X, 'minkowski', p=p)
+         Y2 = wpdist_no_const(X, 'test_minkowski', p=p)
+-        _assert_within_tol(Y1, Y2, rtol=eps)
++        assert_allclose(Y1, Y2, rtol=eps)
+ 
+     def test_pdist_minkowski_random(self):
+         eps = 1e-7
+         X = eo['pdist-double-inp']
+         Y_right = eo['pdist-minkowski-3.2']
+         Y_test1 = wpdist_no_const(X, 'minkowski', p=3.2)
+-        _assert_within_tol(Y_test1, Y_right, rtol=eps)
++        assert_allclose(Y_test1, Y_right, rtol=eps)
+ 
+     def test_pdist_minkowski_random_float32(self):
+         eps = 1e-7
+         X = np.float32(eo['pdist-double-inp'])
+         Y_right = eo['pdist-minkowski-3.2']
+         Y_test1 = wpdist_no_const(X, 'minkowski', p=3.2)
+-        _assert_within_tol(Y_test1, Y_right, rtol=eps)
++        assert_allclose(Y_test1, Y_right, rtol=eps)
+ 
+     def test_pdist_minkowski_random_nonC(self):
+         eps = 1e-7
+         X = eo['pdist-double-inp']
+         Y_right = eo['pdist-minkowski-3.2']
+         Y_test2 = wpdist_no_const(X, 'test_minkowski', p=3.2)
+-        _assert_within_tol(Y_test2, Y_right, rtol=eps)
++        assert_allclose(Y_test2, Y_right, rtol=eps)
+ 
+     @pytest.mark.slow
+     def test_pdist_minkowski_3_2_iris(self):
+@@ -992,7 +982,7 @@ def test_pdist_minkowski_3_2_iris(self):
+         X = eo['iris']
+         Y_right = eo['pdist-minkowski-3.2-iris']
+         Y_test1 = wpdist_no_const(X, 'minkowski', p=3.2)
+-        _assert_within_tol(Y_test1, Y_right, rtol=eps)
++        assert_allclose(Y_test1, Y_right, rtol=eps)
+ 
+     @pytest.mark.slow
+     def test_pdist_minkowski_3_2_iris_float32(self):
+@@ -1000,7 +990,7 @@ def test_pdist_minkowski_3_2_iris_float32(self):
+         X = np.float32(eo['iris'])
+         Y_right = eo['pdist-minkowski-3.2-iris']
+         Y_test1 = wpdist_no_const(X, 'minkowski', p=3.2)
+-        _assert_within_tol(Y_test1, Y_right, rtol=eps)
++        assert_allclose(Y_test1, Y_right, rtol=eps)
+ 
+     @pytest.mark.slow
+     def test_pdist_minkowski_3_2_iris_nonC(self):
+@@ -1008,7 +998,7 @@ def test_pdist_minkowski_3_2_iris_nonC(self):
+         X = eo['iris']
+         Y_right = eo['pdist-minkowski-3.2-iris']
+         Y_test2 = wpdist_no_const(X, 'test_minkowski', p=3.2)
+-        _assert_within_tol(Y_test2, Y_right, rtol=eps)
++        assert_allclose(Y_test2, Y_right, rtol=eps)
+ 
+     @pytest.mark.slow
+     def test_pdist_minkowski_5_8_iris(self):
+@@ -1016,7 +1006,7 @@ def test_pdist_minkowski_5_8_iris(self):
+         X = eo['iris']
+         Y_right = eo['pdist-minkowski-5.8-iris']
+         Y_test1 = wpdist_no_const(X, 'minkowski', p=5.8)
+-        _assert_within_tol(Y_test1, Y_right, rtol=eps)
++        assert_allclose(Y_test1, Y_right, rtol=eps)
+ 
+     @pytest.mark.slow
+     def test_pdist_minkowski_5_8_iris_float32(self):
+@@ -1024,7 +1014,7 @@ def test_pdist_minkowski_5_8_iris_float32(self):
+         X = np.float32(eo['iris'])
+         Y_right = eo['pdist-minkowski-5.8-iris']
+         Y_test1 = wpdist_no_const(X, 'minkowski', p=5.8)
+-        _assert_within_tol(Y_test1, Y_right, rtol=eps, verbose_=verbose > 2)
++        assert_allclose(Y_test1, Y_right, rtol=eps, verbose=verbose > 2)
+ 
+     @pytest.mark.slow
+     def test_pdist_minkowski_5_8_iris_nonC(self):
+@@ -1032,7 +1022,7 @@ def test_pdist_minkowski_5_8_iris_nonC(self):
+         X = eo['iris']
+         Y_right = eo['pdist-minkowski-5.8-iris']
+         Y_test2 = wpdist_no_const(X, 'test_minkowski', p=5.8)
+-        _assert_within_tol(Y_test2, Y_right, rtol=eps)
++        assert_allclose(Y_test2, Y_right, rtol=eps)
+ 
+     def test_pdist_mahalanobis(self):
+         # 1-dimensional observations
+@@ -1056,110 +1046,110 @@ def test_pdist_hamming_random(self):
+         X = eo['pdist-boolean-inp']
+         Y_right = eo['pdist-hamming']
+         Y_test1 = wpdist(X, 'hamming')
+-        _assert_within_tol(Y_test1, Y_right, rtol=eps)
++        assert_allclose(Y_test1, Y_right, rtol=eps)
+ 
+     def test_pdist_hamming_random_float32(self):
+         eps = 1e-15
+         X = np.float32(eo['pdist-boolean-inp'])
+         Y_right = eo['pdist-hamming']
+         Y_test1 = wpdist(X, 'hamming')
+-        _assert_within_tol(Y_test1, Y_right, rtol=eps)
++        assert_allclose(Y_test1, Y_right, rtol=eps)
+ 
+     def test_pdist_hamming_random_nonC(self):
+         eps = 1e-15
+         X = eo['pdist-boolean-inp']
+         Y_right = eo['pdist-hamming']
+         Y_test2 = wpdist(X, 'test_hamming')
+-        _assert_within_tol(Y_test2, Y_right, rtol=eps)
++        assert_allclose(Y_test2, Y_right, rtol=eps)
+ 
+     def test_pdist_dhamming_random(self):
+         eps = 1e-15
+         X = np.float64(eo['pdist-boolean-inp'])
+         Y_right = eo['pdist-hamming']
+         Y_test1 = wpdist(X, 'hamming')
+-        _assert_within_tol(Y_test1, Y_right, rtol=eps)
++        assert_allclose(Y_test1, Y_right, rtol=eps)
+ 
+     def test_pdist_dhamming_random_float32(self):
+         eps = 1e-15
+         X = np.float32(eo['pdist-boolean-inp'])
+         Y_right = eo['pdist-hamming']
+         Y_test1 = wpdist(X, 'hamming')
+-        _assert_within_tol(Y_test1, Y_right, rtol=eps)
++        assert_allclose(Y_test1, Y_right, rtol=eps)
+ 
+     def test_pdist_dhamming_random_nonC(self):
+         eps = 1e-15
+         X = np.float64(eo['pdist-boolean-inp'])
+         Y_right = eo['pdist-hamming']
+         Y_test2 = wpdist(X, 'test_hamming')
+-        _assert_within_tol(Y_test2, Y_right, rtol=eps)
++        assert_allclose(Y_test2, Y_right, rtol=eps)
+ 
+     def test_pdist_jaccard_random(self):
+         eps = 1e-8
+         X = eo['pdist-boolean-inp']
+         Y_right = eo['pdist-jaccard']
+         Y_test1 = wpdist(X, 'jaccard')
+-        _assert_within_tol(Y_test1, Y_right, rtol=eps)
++        assert_allclose(Y_test1, Y_right, rtol=eps)
+ 
+     def test_pdist_jaccard_random_float32(self):
+         eps = 1e-8
+         X = np.float32(eo['pdist-boolean-inp'])
+         Y_right = eo['pdist-jaccard']
+         Y_test1 = wpdist(X, 'jaccard')
+-        _assert_within_tol(Y_test1, Y_right, rtol=eps)
++        assert_allclose(Y_test1, Y_right, rtol=eps)
+ 
+     def test_pdist_jaccard_random_nonC(self):
+         eps = 1e-8
+         X = eo['pdist-boolean-inp']
+         Y_right = eo['pdist-jaccard']
+         Y_test2 = wpdist(X, 'test_jaccard')
+-        _assert_within_tol(Y_test2, Y_right, rtol=eps)
++        assert_allclose(Y_test2, Y_right, rtol=eps)
+ 
+     def test_pdist_djaccard_random(self):
+         eps = 1e-8
+         X = np.float64(eo['pdist-boolean-inp'])
+         Y_right = eo['pdist-jaccard']
+         Y_test1 = wpdist(X, 'jaccard')
+-        _assert_within_tol(Y_test1, Y_right, rtol=eps)
++        assert_allclose(Y_test1, Y_right, rtol=eps)
+ 
+     def test_pdist_djaccard_random_float32(self):
+         eps = 1e-8
+         X = np.float32(eo['pdist-boolean-inp'])
+         Y_right = eo['pdist-jaccard']
+         Y_test1 = wpdist(X, 'jaccard')
+-        _assert_within_tol(Y_test1, Y_right, rtol=eps)
++        assert_allclose(Y_test1, Y_right, rtol=eps)
+ 
+     def test_pdist_djaccard_allzeros(self):
+         eps = 1e-15
+         Y = pdist(np.zeros((5, 3)), 'jaccard')
+-        _assert_within_tol(np.zeros(10), Y, rtol=eps)
++        assert_allclose(np.zeros(10), Y, rtol=eps)
+ 
+     def test_pdist_djaccard_random_nonC(self):
+         eps = 1e-8
+         X = np.float64(eo['pdist-boolean-inp'])
+         Y_right = eo['pdist-jaccard']
+         Y_test2 = wpdist(X, 'test_jaccard')
+-        _assert_within_tol(Y_test2, Y_right, rtol=eps)
++        assert_allclose(Y_test2, Y_right, rtol=eps)
+ 
+     def test_pdist_jensenshannon_random(self):
+         eps = 1e-11
+         X = eo['pdist-double-inp']
+         Y_right = eo['pdist-jensenshannon']
+         Y_test1 = pdist(X, 'jensenshannon')
+-        _assert_within_tol(Y_test1, Y_right, rtol=eps)
++        assert_allclose(Y_test1, Y_right, rtol=eps)
+ 
+     def test_pdist_jensenshannon_random_float32(self):
+         eps = 1e-8
+         X = np.float32(eo['pdist-double-inp'])
+         Y_right = eo['pdist-jensenshannon']
+         Y_test1 = pdist(X, 'jensenshannon')
+-        _assert_within_tol(Y_test1, Y_right, rtol=eps, verbose_=verbose > 2)
++        assert_allclose(Y_test1, Y_right, rtol=eps, verbose=verbose > 2)
+ 
+     def test_pdist_jensenshannon_random_nonC(self):
+         eps = 1e-11
+         X = eo['pdist-double-inp']
+         Y_right = eo['pdist-jensenshannon']
+         Y_test2 = pdist(X, 'test_jensenshannon')
+-        _assert_within_tol(Y_test2, Y_right, rtol=eps)
++        assert_allclose(Y_test2, Y_right, rtol=eps)
+ 
+     def test_pdist_jensenshannon_iris(self):
+         if _is_32bit():
+@@ -1171,68 +1161,68 @@ def test_pdist_jensenshannon_iris(self):
+         X = eo['iris']
+         Y_right = eo['pdist-jensenshannon-iris']
+         Y_test1 = pdist(X, 'jensenshannon')
+-        _assert_within_tol(Y_test1, Y_right, rtol=eps)
++        assert_allclose(Y_test1, Y_right, rtol=eps)
+ 
+     def test_pdist_jensenshannon_iris_float32(self):
+         eps = 1e-5
+         X = np.float32(eo['iris'])
+         Y_right = eo['pdist-jensenshannon-iris']
+         Y_test1 = pdist(X, 'jensenshannon')
+-        _assert_within_tol(Y_test1, Y_right, rtol=eps, verbose_=verbose > 2)
++        assert_allclose(Y_test1, Y_right, rtol=eps, verbose=verbose > 2)
+ 
+     def test_pdist_jensenshannon_iris_nonC(self):
+         eps = 5e-5
+         X = eo['iris']
+         Y_right = eo['pdist-jensenshannon-iris']
+         Y_test2 = pdist(X, 'test_jensenshannon')
+-        _assert_within_tol(Y_test2, Y_right, rtol=eps)
++        assert_allclose(Y_test2, Y_right, rtol=eps)
+ 
+     def test_pdist_djaccard_allzeros_nonC(self):
+         eps = 1e-15
+         Y = pdist(np.zeros((5, 3)), 'test_jaccard')
+-        _assert_within_tol(np.zeros(10), Y, rtol=eps)
++        assert_allclose(np.zeros(10), Y, rtol=eps)
+ 
+     def test_pdist_chebyshev_random(self):
+         eps = 1e-8
+         X = eo['pdist-double-inp']
+         Y_right = eo['pdist-chebyshev']
+         Y_test1 = pdist(X, 'chebyshev')
+-        _assert_within_tol(Y_test1, Y_right, rtol=eps)
++        assert_allclose(Y_test1, Y_right, rtol=eps)
+ 
+     def test_pdist_chebyshev_random_float32(self):
+         eps = 1e-7
+         X = np.float32(eo['pdist-double-inp'])
+         Y_right = eo['pdist-chebyshev']
+         Y_test1 = pdist(X, 'chebyshev')
+-        _assert_within_tol(Y_test1, Y_right, rtol=eps, verbose_=verbose > 2)
++        assert_allclose(Y_test1, Y_right, rtol=eps, verbose=verbose > 2)
+ 
+     def test_pdist_chebyshev_random_nonC(self):
+         eps = 1e-8
+         X = eo['pdist-double-inp']
+         Y_right = eo['pdist-chebyshev']
+         Y_test2 = pdist(X, 'test_chebyshev')
+-        _assert_within_tol(Y_test2, Y_right, rtol=eps)
++        assert_allclose(Y_test2, Y_right, rtol=eps)
+ 
+     def test_pdist_chebyshev_iris(self):
+         eps = 1e-14
+         X = eo['iris']
+         Y_right = eo['pdist-chebyshev-iris']
+         Y_test1 = pdist(X, 'chebyshev')
+-        _assert_within_tol(Y_test1, Y_right, rtol=eps)
++        assert_allclose(Y_test1, Y_right, rtol=eps)
+ 
+     def test_pdist_chebyshev_iris_float32(self):
+         eps = 1e-5
+         X = np.float32(eo['iris'])
+         Y_right = eo['pdist-chebyshev-iris']
+         Y_test1 = pdist(X, 'chebyshev')
+-        _assert_within_tol(Y_test1, Y_right, rtol=eps, verbose_=verbose > 2)
++        assert_allclose(Y_test1, Y_right, rtol=eps, verbose=verbose > 2)
+ 
+     def test_pdist_chebyshev_iris_nonC(self):
+         eps = 1e-14
+         X = eo['iris']
+         Y_right = eo['pdist-chebyshev-iris']
+         Y_test2 = pdist(X, 'test_chebyshev')
+-        _assert_within_tol(Y_test2, Y_right, rtol=eps)
++        assert_allclose(Y_test2, Y_right, rtol=eps)
+ 
+     def test_pdist_matching_mtica1(self):
+         # Test matching(*,*) with mtica example #1 (nums).
+@@ -1376,7 +1366,7 @@ def test_pdist_canberra_match(self):
+         eps = 1e-15
+         y1 = wpdist_no_const(D, ""canberra"")
+         y2 = wpdist_no_const(D, ""test_canberra"")
+-        _assert_within_tol(y1, y2, rtol=eps, verbose_=verbose > 2)
++        assert_allclose(y1, y2, rtol=eps, verbose=verbose > 2)
+ 
+     def test_pdist_canberra_ticket_711(self):
+         # Test pdist(X, 'canberra') to see if Canberra gives the right result
+@@ -1384,7 +1374,7 @@ def test_pdist_canberra_ticket_711(self):
+         eps = 1e-8
+         pdist_y = wpdist_no_const(([3.3], [3.4]), ""canberra"")
+         right_y = 0.01492537
+-        _assert_within_tol(pdist_y, right_y, atol=eps, verbose_=verbose > 2)
++        assert_allclose(pdist_y, right_y, atol=eps, verbose=verbose > 2)
+ 
+     def test_pdist_custom_notdouble(self):
+         # tests that when using a custom metric the data type is not altered
+@@ -1415,8 +1405,8 @@ def _check_calling_conventions(self, X, metric, eps=1e-07, **kwargs):
+             assert_raises(e_cls, pdist, X, metric=eval(metric), **kwargs)
+             assert_raises(e_cls, pdist, X, metric=""test_"" + metric, **kwargs)
+         else:
+-            _assert_within_tol(y1, y2, rtol=eps, verbose_=verbose > 2)
+-            _assert_within_tol(y1, y3, rtol=eps, verbose_=verbose > 2)
++            assert_allclose(y1, y2, rtol=eps, verbose=verbose > 2)
++            assert_allclose(y1, y3, rtol=eps, verbose=verbose > 2)
+ 
+     def test_pdist_calling_conventions(self):
+         # Ensures that specifying the metric with a str or scipy function
+@@ -1470,7 +1460,7 @@ def test_pdist_dtype_equivalence(self):
+                 else:
+                     for new_type in test[1]:
+                         y2 = pdist(new_type(X1), metric=metric)
+-                        _assert_within_tol(y1, y2, rtol=eps, verbose_=verbose > 2)
++                        assert_allclose(y1, y2, rtol=eps, verbose=verbose > 2)
+ 
+     def test_pdist_out(self):
+         # Test that out parameter works properly
+@@ -1485,7 +1475,7 @@ def test_pdist_out(self):
+             Y_right = pdist(X, metric, **kwargs)
+             Y_test1 = pdist(X, metric, out=out1, **kwargs)
+             # test that output is numerically equivalent
+-            _assert_within_tol(Y_test1, Y_right, rtol=eps)
++            assert_allclose(Y_test1, Y_right, rtol=eps)
+             # test that Y_test1 and out1 are the same object
+             assert_(Y_test1 is out1)
+             # test for incorrect shape
+@@ -1516,7 +1506,7 @@ def test_striding(self):
+             Y1 = pdist(X, metric, **kwargs)
+             Y2 = pdist(X_copy, metric, **kwargs)
+             # test that output is numerically equivalent
+-            _assert_within_tol(Y1, Y2, rtol=eps, verbose_=verbose > 2)
++            assert_allclose(Y1, Y2, rtol=eps, verbose=verbose > 2)
+ 
+ class TestSomeDistanceFunctions:
+ 
+"
+29,"diff --git a/scipy/optimize/_differentiable_functions.py b/scipy/optimize/_differentiable_functions.py
+index 57e8a3127ddc..cf70d5c827ab 100644
+--- a/scipy/optimize/_differentiable_functions.py
++++ b/scipy/optimize/_differentiable_functions.py
+@@ -113,6 +113,9 @@ def __init__(self, fun, x0, args, grad, hess, finite_diff_rel_step,
+         self.g_updated = False
+         self.H_updated = False
+ 
++        self._best_x = None
++        self._best_f = np.inf
++
+         finite_diff_options = {}
+         if grad in FD_METHODS:
+             finite_diff_options[""method""] = grad
+@@ -141,6 +144,11 @@ def fun_wrapped(x):
+                         ""The user-provided objective function ""
+                         ""must return a scalar value.""
+                     ) from e
++
++            if fx < self._best_f:
++                self._best_x = np.copy(x)
++                self._best_f = fx
++
+             return fx
+ 
+         def update_fun():
+"
+30,"diff --git a/.gitignore b/.gitignore
+index 8939a7ae497e..e1047b01898e 100644
+--- a/.gitignore
++++ b/.gitignore
+@@ -227,19 +227,19 @@ scipy/sparse/csgraph/_matching.c
+ scipy/sparse/csgraph/_reordering.c
+ scipy/sparse/linalg/dsolve/umfpack/_umfpack.py
+ scipy/sparse/linalg/dsolve/umfpack/_umfpack_wrap.c
+-scipy/sparse/linalg/eigen/arpack/_arpack-f2pywrappers.f
+-scipy/sparse/linalg/eigen/arpack/_arpackmodule.c
+-scipy/sparse/linalg/eigen/arpack/arpack.pyf
+-scipy/sparse/linalg/isolve/iterative/BiCGREVCOM.f
+-scipy/sparse/linalg/isolve/iterative/BiCGSTABREVCOM.f
+-scipy/sparse/linalg/isolve/iterative/CGREVCOM.f
+-scipy/sparse/linalg/isolve/iterative/CGSREVCOM.f
+-scipy/sparse/linalg/isolve/iterative/GMRESREVCOM.f
+-scipy/sparse/linalg/isolve/iterative/QMRREVCOM.f
+-scipy/sparse/linalg/isolve/iterative/STOPTEST2.f
+-scipy/sparse/linalg/isolve/iterative/_iterative.pyf
+-scipy/sparse/linalg/isolve/iterative/_iterativemodule.c
+-scipy/sparse/linalg/isolve/iterative/getbreak.f
++scipy/sparse/linalg/_eigen/arpack/_arpack-f2pywrappers.f
++scipy/sparse/linalg/_eigen/arpack/_arpackmodule.c
++scipy/sparse/linalg/_eigen/arpack/arpack.pyf
++scipy/sparse/linalg/_isolve/iterative/BiCGREVCOM.f
++scipy/sparse/linalg/_isolve/iterative/BiCGSTABREVCOM.f
++scipy/sparse/linalg/_isolve/iterative/CGREVCOM.f
++scipy/sparse/linalg/_isolve/iterative/CGSREVCOM.f
++scipy/sparse/linalg/_isolve/iterative/GMRESREVCOM.f
++scipy/sparse/linalg/_isolve/iterative/QMRREVCOM.f
++scipy/sparse/linalg/_isolve/iterative/STOPTEST2.f
++scipy/sparse/linalg/_isolve/iterative/_iterative.pyf
++scipy/sparse/linalg/_isolve/iterative/_iterativemodule.c
++scipy/sparse/linalg/_isolve/iterative/getbreak.f
+ scipy/sparse/sparsetools/bsr_impl.h
+ scipy/sparse/sparsetools/csc_impl.h
+ scipy/sparse/sparsetools/csr_impl.h
+"
+31,"diff --git a/scipy/spatial/tests/test_distance.py b/scipy/spatial/tests/test_distance.py
+index b9e69bbc425f..7a4e5e9a04c7 100644
+--- a/scipy/spatial/tests/test_distance.py
++++ b/scipy/spatial/tests/test_distance.py
+@@ -710,151 +710,151 @@ def test_pdist_euclidean_random(self):
+         X = eo['pdist-double-inp']
+         Y_right = eo['pdist-euclidean']
+         Y_test1 = wpdist_no_const(X, 'euclidean')
+-        _assert_within_tol(Y_test1, Y_right, eps)
++        _assert_within_tol(Y_test1, Y_right, rtol=eps)
+ 
+     def test_pdist_euclidean_random_u(self):
+         eps = 1e-07
+         X = eo['pdist-double-inp']
+         Y_right = eo['pdist-euclidean']
+         Y_test1 = wpdist_no_const(X, 'euclidean')
+-        _assert_within_tol(Y_test1, Y_right, eps)
++        _assert_within_tol(Y_test1, Y_right, rtol=eps)
+ 
+     def test_pdist_euclidean_random_float32(self):
+         eps = 1e-07
+         X = np.float32(eo['pdist-double-inp'])
+         Y_right = eo['pdist-euclidean']
+         Y_test1 = wpdist_no_const(X, 'euclidean')
+-        _assert_within_tol(Y_test1, Y_right, eps)
++        _assert_within_tol(Y_test1, Y_right, rtol=eps)
+ 
+     def test_pdist_euclidean_random_nonC(self):
+         eps = 1e-07
+         X = eo['pdist-double-inp']
+         Y_right = eo['pdist-euclidean']
+         Y_test2 = wpdist_no_const(X, 'test_euclidean')
+-        _assert_within_tol(Y_test2, Y_right, eps)
++        _assert_within_tol(Y_test2, Y_right, rtol=eps)
+ 
+     @pytest.mark.slow
+     def test_pdist_euclidean_iris_double(self):
+-        eps = 1e-07
++        eps = 1e-7
+         X = eo['iris']
+         Y_right = eo['pdist-euclidean-iris']
+         Y_test1 = wpdist_no_const(X, 'euclidean')
+-        _assert_within_tol(Y_test1, Y_right, eps)
++        _assert_within_tol(Y_test1, Y_right, rtol=eps)
+ 
+     @pytest.mark.slow
+     def test_pdist_euclidean_iris_float32(self):
+-        eps = 1e-06
++        eps = 1e-5
+         X = np.float32(eo['iris'])
+         Y_right = eo['pdist-euclidean-iris']
+         Y_test1 = wpdist_no_const(X, 'euclidean')
+-        _assert_within_tol(Y_test1, Y_right, atol=eps, verbose_=verbose > 2)
++        _assert_within_tol(Y_test1, Y_right, rtol=eps, verbose_=verbose > 2)
+ 
+     @pytest.mark.slow
+     def test_pdist_euclidean_iris_nonC(self):
+         # Test pdist(X, 'test_euclidean') [the non-C implementation] on the
+         # Iris data set.
+-        eps = 1e-07
++        eps = 1e-7
+         X = eo['iris']
+         Y_right = eo['pdist-euclidean-iris']
+         Y_test2 = wpdist_no_const(X, 'test_euclidean')
+-        _assert_within_tol(Y_test2, Y_right, eps)
++        _assert_within_tol(Y_test2, Y_right, rtol=eps)
+ 
+     def test_pdist_seuclidean_random(self):
+-        eps = 1e-05
++        eps = 1e-7
+         X = eo['pdist-double-inp']
+         Y_right = eo['pdist-seuclidean']
+         Y_test1 = pdist(X, 'seuclidean')
+-        _assert_within_tol(Y_test1, Y_right, eps)
++        _assert_within_tol(Y_test1, Y_right, rtol=eps)
+ 
+     def test_pdist_seuclidean_random_float32(self):
+-        eps = 1e-05
++        eps = 1e-7
+         X = np.float32(eo['pdist-double-inp'])
+         Y_right = eo['pdist-seuclidean']
+         Y_test1 = pdist(X, 'seuclidean')
+-        _assert_within_tol(Y_test1, Y_right, eps)
++        _assert_within_tol(Y_test1, Y_right, rtol=eps)
+ 
+         # Check no error is raise when V has float32 dtype (#11171).
+         V = np.var(X, axis=0, ddof=1)
+         Y_test2 = pdist(X, 'seuclidean', V=V)
+-        _assert_within_tol(Y_test2, Y_right, eps)
++        _assert_within_tol(Y_test2, Y_right, rtol=eps)
+ 
+     def test_pdist_seuclidean_random_nonC(self):
+         # Test pdist(X, 'test_sqeuclidean') [the non-C implementation]
+-        eps = 1e-05
++        eps = 1e-07
+         X = eo['pdist-double-inp']
+         Y_right = eo['pdist-seuclidean']
+         Y_test2 = pdist(X, 'test_seuclidean')
+-        _assert_within_tol(Y_test2, Y_right, eps)
++        _assert_within_tol(Y_test2, Y_right, rtol=eps)
+ 
+     def test_pdist_seuclidean_iris(self):
+-        eps = 1e-05
++        eps = 1e-7
+         X = eo['iris']
+         Y_right = eo['pdist-seuclidean-iris']
+         Y_test1 = pdist(X, 'seuclidean')
+-        _assert_within_tol(Y_test1, Y_right, eps)
++        _assert_within_tol(Y_test1, Y_right, rtol=eps)
+ 
+     def test_pdist_seuclidean_iris_float32(self):
+         # Tests pdist(X, 'seuclidean') on the Iris data set (float32).
+-        eps = 1e-05
++        eps = 1e-5
+         X = np.float32(eo['iris'])
+         Y_right = eo['pdist-seuclidean-iris']
+         Y_test1 = pdist(X, 'seuclidean')
+-        _assert_within_tol(Y_test1, Y_right, eps)
++        _assert_within_tol(Y_test1, Y_right, rtol=eps)
+ 
+     def test_pdist_seuclidean_iris_nonC(self):
+         # Test pdist(X, 'test_seuclidean') [the non-C implementation] on the
+         # Iris data set.
+-        eps = 1e-05
++        eps = 1e-7
+         X = eo['iris']
+         Y_right = eo['pdist-seuclidean-iris']
+         Y_test2 = pdist(X, 'test_seuclidean')
+-        _assert_within_tol(Y_test2, Y_right, eps)
++        _assert_within_tol(Y_test2, Y_right, rtol=eps)
+ 
+     def test_pdist_cosine_random(self):
+-        eps = 1e-08
++        eps = 1e-7
+         X = eo['pdist-double-inp']
+         Y_right = eo['pdist-cosine']
+         Y_test1 = wpdist(X, 'cosine')
+-        _assert_within_tol(Y_test1, Y_right, eps)
++        _assert_within_tol(Y_test1, Y_right, rtol=eps)
+ 
+     def test_pdist_cosine_random_float32(self):
+-        eps = 1e-08
++        eps = 1e-7
+         X = np.float32(eo['pdist-double-inp'])
+         Y_right = eo['pdist-cosine']
+         Y_test1 = wpdist(X, 'cosine')
+-        _assert_within_tol(Y_test1, Y_right, eps)
++        _assert_within_tol(Y_test1, Y_right, rtol=eps)
+ 
+     def test_pdist_cosine_random_nonC(self):
+         # Test pdist(X, 'test_cosine') [the non-C implementation]
+-        eps = 1e-08
++        eps = 1e-7
+         X = eo['pdist-double-inp']
+         Y_right = eo['pdist-cosine']
+         Y_test2 = wpdist(X, 'test_cosine')
+-        _assert_within_tol(Y_test2, Y_right, eps)
++        _assert_within_tol(Y_test2, Y_right, rtol=eps)
+ 
+     @pytest.mark.slow
+     def test_pdist_cosine_iris(self):
+-        eps = 1e-08
++        eps = 1e-15
+         X = eo['iris']
+         Y_right = eo['pdist-cosine-iris']
+         Y_test1 = wpdist(X, 'cosine')
+-        _assert_within_tol(Y_test1, Y_right, eps)
++        _assert_within_tol(Y_test1, Y_right, rtol=eps)
+ 
+     @pytest.mark.slow
+     def test_pdist_cosine_iris_float32(self):
+-        eps = 1e-07
++        eps = 1e-15
+         X = np.float32(eo['iris'])
+         Y_right = eo['pdist-cosine-iris']
+         Y_test1 = wpdist(X, 'cosine')
+-        _assert_within_tol(Y_test1, Y_right, atol=eps, verbose_=verbose > 2)
++        _assert_within_tol(Y_test1, Y_right, rtol=eps, verbose_=verbose > 2)
+ 
+     @pytest.mark.slow
+     def test_pdist_cosine_iris_nonC(self):
+-        eps = 1e-08
++        eps = 1e-15
+         X = eo['iris']
+         Y_right = eo['pdist-cosine-iris']
+         Y_test2 = wpdist(X, 'test_cosine')
+-        _assert_within_tol(Y_test2, Y_right, eps)
++        _assert_within_tol(Y_test2, Y_right, rtol=eps)
+ 
+     def test_pdist_cosine_bounds(self):
+         # Test adapted from @joernhees's example at gh-5208: case where
+@@ -866,25 +866,25 @@ def test_pdist_cosine_bounds(self):
+                 msg='cosine distance should be non-negative')
+ 
+     def test_pdist_cityblock_random(self):
+-        eps = 1e-06
++        eps = 1e-7
+         X = eo['pdist-double-inp']
+         Y_right = eo['pdist-cityblock']
+         Y_test1 = wpdist_no_const(X, 'cityblock')
+-        _assert_within_tol(Y_test1, Y_right, eps)
++        _assert_within_tol(Y_test1, Y_right, rtol=eps)
+ 
+     def test_pdist_cityblock_random_float32(self):
+-        eps = 1e-06
++        eps = 1e-7
+         X = np.float32(eo['pdist-double-inp'])
+         Y_right = eo['pdist-cityblock']
+         Y_test1 = wpdist_no_const(X, 'cityblock')
+-        _assert_within_tol(Y_test1, Y_right, eps)
++        _assert_within_tol(Y_test1, Y_right, rtol=eps)
+ 
+     def test_pdist_cityblock_random_nonC(self):
+-        eps = 1e-06
++        eps = 1e-7
+         X = eo['pdist-double-inp']
+         Y_right = eo['pdist-cityblock']
+         Y_test2 = wpdist_no_const(X, 'test_cityblock')
+-        _assert_within_tol(Y_test2, Y_right, eps)
++        _assert_within_tol(Y_test2, Y_right, rtol=eps)
+ 
+     @pytest.mark.slow
+     def test_pdist_cityblock_iris(self):
+@@ -892,15 +892,15 @@ def test_pdist_cityblock_iris(self):
+         X = eo['iris']
+         Y_right = eo['pdist-cityblock-iris']
+         Y_test1 = wpdist_no_const(X, 'cityblock')
+-        _assert_within_tol(Y_test1, Y_right, eps)
++        _assert_within_tol(Y_test1, Y_right, rtol=eps)
+ 
+     @pytest.mark.slow
+     def test_pdist_cityblock_iris_float32(self):
+-        eps = 1e-06
++        eps = 1e-5
+         X = np.float32(eo['iris'])
+         Y_right = eo['pdist-cityblock-iris']
+         Y_test1 = wpdist_no_const(X, 'cityblock')
+-        _assert_within_tol(Y_test1, Y_right, atol=eps, verbose_=verbose > 2)
++        _assert_within_tol(Y_test1, Y_right, rtol=eps, verbose_=verbose > 2)
+ 
+     @pytest.mark.slow
+     def test_pdist_cityblock_iris_nonC(self):
+@@ -910,129 +910,129 @@ def test_pdist_cityblock_iris_nonC(self):
+         X = eo['iris']
+         Y_right = eo['pdist-cityblock-iris']
+         Y_test2 = wpdist_no_const(X, 'test_cityblock')
+-        _assert_within_tol(Y_test2, Y_right, eps)
++        _assert_within_tol(Y_test2, Y_right, rtol=eps)
+ 
+     def test_pdist_correlation_random(self):
+-        eps = 1e-07
++        eps = 1e-7
+         X = eo['pdist-double-inp']
+         Y_right = eo['pdist-correlation']
+         Y_test1 = wpdist(X, 'correlation')
+-        _assert_within_tol(Y_test1, Y_right, eps)
++        _assert_within_tol(Y_test1, Y_right, rtol=eps)
+ 
+     def test_pdist_correlation_random_float32(self):
+-        eps = 1e-07
++        eps = 1e-7
+         X = np.float32(eo['pdist-double-inp'])
+         Y_right = eo['pdist-correlation']
+         Y_test1 = wpdist(X, 'correlation')
+-        _assert_within_tol(Y_test1, Y_right, eps)
++        _assert_within_tol(Y_test1, Y_right, rtol=eps)
+ 
+     def test_pdist_correlation_random_nonC(self):
+-        eps = 1e-07
++        eps = 1e-7
+         X = eo['pdist-double-inp']
+         Y_right = eo['pdist-correlation']
+         Y_test2 = wpdist(X, 'test_correlation')
+-        _assert_within_tol(Y_test2, Y_right, eps)
++        _assert_within_tol(Y_test2, Y_right, rtol=eps)
+ 
+     @pytest.mark.slow
+     def test_pdist_correlation_iris(self):
+-        eps = 1e-08
++        eps = 1e-7
+         X = eo['iris']
+         Y_right = eo['pdist-correlation-iris']
+         Y_test1 = wpdist(X, 'correlation')
+-        _assert_within_tol(Y_test1, Y_right, eps)
++        _assert_within_tol(Y_test1, Y_right, rtol=eps)
+ 
+     @pytest.mark.slow
+     def test_pdist_correlation_iris_float32(self):
+-        eps = 1e-07
++        eps = 1e-7
+         X = eo['iris']
+         Y_right = np.float32(eo['pdist-correlation-iris'])
+         Y_test1 = wpdist(X, 'correlation')
+-        _assert_within_tol(Y_test1, Y_right, atol=eps, verbose_=verbose > 2)
++        _assert_within_tol(Y_test1, Y_right, rtol=eps, verbose_=verbose > 2)
+ 
+     @pytest.mark.slow
+     def test_pdist_correlation_iris_nonC(self):
+-        eps = 1e-08
++        eps = 1e-7
+         X = eo['iris']
+         Y_right = eo['pdist-correlation-iris']
+         Y_test2 = wpdist(X, 'test_correlation')
+-        _assert_within_tol(Y_test2, Y_right, eps)
++        _assert_within_tol(Y_test2, Y_right, rtol=eps)
+ 
+     @pytest.mark.parametrize(""p"", [1.0, 2.0, 3.2, np.inf])
+     def test_pdist_minkowski_random_p(self, p):
+-        eps = 1e-05
++        eps = 1e-15
+         X = eo['pdist-double-inp']
+         Y1 = wpdist_no_const(X, 'minkowski', p=p)
+         Y2 = wpdist_no_const(X, 'test_minkowski', p=p)
+-        _assert_within_tol(Y1, Y2, eps)
++        _assert_within_tol(Y1, Y2, rtol=eps)
+ 
+     def test_pdist_minkowski_random(self):
+-        eps = 1e-05
++        eps = 1e-7
+         X = eo['pdist-double-inp']
+         Y_right = eo['pdist-minkowski-3.2']
+         Y_test1 = wpdist_no_const(X, 'minkowski', p=3.2)
+-        _assert_within_tol(Y_test1, Y_right, eps)
++        _assert_within_tol(Y_test1, Y_right, rtol=eps)
+ 
+     def test_pdist_minkowski_random_float32(self):
+-        eps = 1e-05
++        eps = 1e-7
+         X = np.float32(eo['pdist-double-inp'])
+         Y_right = eo['pdist-minkowski-3.2']
+         Y_test1 = wpdist_no_const(X, 'minkowski', p=3.2)
+-        _assert_within_tol(Y_test1, Y_right, eps)
++        _assert_within_tol(Y_test1, Y_right, rtol=eps)
+ 
+     def test_pdist_minkowski_random_nonC(self):
+-        eps = 1e-05
++        eps = 1e-7
+         X = eo['pdist-double-inp']
+         Y_right = eo['pdist-minkowski-3.2']
+         Y_test2 = wpdist_no_const(X, 'test_minkowski', p=3.2)
+-        _assert_within_tol(Y_test2, Y_right, eps)
++        _assert_within_tol(Y_test2, Y_right, rtol=eps)
+ 
+     @pytest.mark.slow
+     def test_pdist_minkowski_3_2_iris(self):
+-        eps = 1e-07
++        eps = 1e-7
+         X = eo['iris']
+         Y_right = eo['pdist-minkowski-3.2-iris']
+         Y_test1 = wpdist_no_const(X, 'minkowski', p=3.2)
+-        _assert_within_tol(Y_test1, Y_right, eps)
++        _assert_within_tol(Y_test1, Y_right, rtol=eps)
+ 
+     @pytest.mark.slow
+     def test_pdist_minkowski_3_2_iris_float32(self):
+-        eps = 1e-06
++        eps = 1e-5
+         X = np.float32(eo['iris'])
+         Y_right = eo['pdist-minkowski-3.2-iris']
+         Y_test1 = wpdist_no_const(X, 'minkowski', p=3.2)
+-        _assert_within_tol(Y_test1, Y_right, eps)
++        _assert_within_tol(Y_test1, Y_right, rtol=eps)
+ 
+     @pytest.mark.slow
+     def test_pdist_minkowski_3_2_iris_nonC(self):
+-        eps = 1e-07
++        eps = 1e-7
+         X = eo['iris']
+         Y_right = eo['pdist-minkowski-3.2-iris']
+         Y_test2 = wpdist_no_const(X, 'test_minkowski', p=3.2)
+-        _assert_within_tol(Y_test2, Y_right, eps)
++        _assert_within_tol(Y_test2, Y_right, rtol=eps)
+ 
+     @pytest.mark.slow
+     def test_pdist_minkowski_5_8_iris(self):
+-        eps = 1e-07
++        eps = 1e-7
+         X = eo['iris']
+         Y_right = eo['pdist-minkowski-5.8-iris']
+         Y_test1 = wpdist_no_const(X, 'minkowski', p=5.8)
+-        _assert_within_tol(Y_test1, Y_right, eps)
++        _assert_within_tol(Y_test1, Y_right, rtol=eps)
+ 
+     @pytest.mark.slow
+     def test_pdist_minkowski_5_8_iris_float32(self):
+-        eps = 1e-06
++        eps = 1e-5
+         X = np.float32(eo['iris'])
+         Y_right = eo['pdist-minkowski-5.8-iris']
+         Y_test1 = wpdist_no_const(X, 'minkowski', p=5.8)
+-        _assert_within_tol(Y_test1, Y_right, atol=eps, verbose_=verbose > 2)
++        _assert_within_tol(Y_test1, Y_right, rtol=eps, verbose_=verbose > 2)
+ 
+     @pytest.mark.slow
+     def test_pdist_minkowski_5_8_iris_nonC(self):
+-        eps = 1e-07
++        eps = 1e-7
+         X = eo['iris']
+         Y_right = eo['pdist-minkowski-5.8-iris']
+         Y_test2 = wpdist_no_const(X, 'test_minkowski', p=5.8)
+-        _assert_within_tol(Y_test2, Y_right, eps)
++        _assert_within_tol(Y_test2, Y_right, rtol=eps)
+ 
+     def test_pdist_mahalanobis(self):
+         # 1-dimensional observations
+@@ -1052,187 +1052,187 @@ def test_pdist_mahalanobis(self):
+                       wpdist, [[0, 1], [2, 3]], metric='mahalanobis')
+ 
+     def test_pdist_hamming_random(self):
+-        eps = 1e-07
++        eps = 1e-15
+         X = eo['pdist-boolean-inp']
+         Y_right = eo['pdist-hamming']
+         Y_test1 = wpdist(X, 'hamming')
+-        _assert_within_tol(Y_test1, Y_right, eps)
++        _assert_within_tol(Y_test1, Y_right, rtol=eps)
+ 
+     def test_pdist_hamming_random_float32(self):
+-        eps = 1e-07
++        eps = 1e-15
+         X = np.float32(eo['pdist-boolean-inp'])
+         Y_right = eo['pdist-hamming']
+         Y_test1 = wpdist(X, 'hamming')
+-        _assert_within_tol(Y_test1, Y_right, eps)
++        _assert_within_tol(Y_test1, Y_right, rtol=eps)
+ 
+     def test_pdist_hamming_random_nonC(self):
+-        eps = 1e-07
++        eps = 1e-15
+         X = eo['pdist-boolean-inp']
+         Y_right = eo['pdist-hamming']
+         Y_test2 = wpdist(X, 'test_hamming')
+-        _assert_within_tol(Y_test2, Y_right, eps)
++        _assert_within_tol(Y_test2, Y_right, rtol=eps)
+ 
+     def test_pdist_dhamming_random(self):
+-        eps = 1e-07
++        eps = 1e-15
+         X = np.float64(eo['pdist-boolean-inp'])
+         Y_right = eo['pdist-hamming']
+         Y_test1 = wpdist(X, 'hamming')
+-        _assert_within_tol(Y_test1, Y_right, eps)
++        _assert_within_tol(Y_test1, Y_right, rtol=eps)
+ 
+     def test_pdist_dhamming_random_float32(self):
+-        eps = 1e-07
++        eps = 1e-15
+         X = np.float32(eo['pdist-boolean-inp'])
+         Y_right = eo['pdist-hamming']
+         Y_test1 = wpdist(X, 'hamming')
+-        _assert_within_tol(Y_test1, Y_right, eps)
++        _assert_within_tol(Y_test1, Y_right, rtol=eps)
+ 
+     def test_pdist_dhamming_random_nonC(self):
+-        eps = 1e-07
++        eps = 1e-15
+         X = np.float64(eo['pdist-boolean-inp'])
+         Y_right = eo['pdist-hamming']
+         Y_test2 = wpdist(X, 'test_hamming')
+-        _assert_within_tol(Y_test2, Y_right, eps)
++        _assert_within_tol(Y_test2, Y_right, rtol=eps)
+ 
+     def test_pdist_jaccard_random(self):
+-        eps = 1e-08
++        eps = 1e-8
+         X = eo['pdist-boolean-inp']
+         Y_right = eo['pdist-jaccard']
+         Y_test1 = wpdist(X, 'jaccard')
+-        _assert_within_tol(Y_test1, Y_right, eps)
++        _assert_within_tol(Y_test1, Y_right, rtol=eps)
+ 
+     def test_pdist_jaccard_random_float32(self):
+-        eps = 1e-08
++        eps = 1e-8
+         X = np.float32(eo['pdist-boolean-inp'])
+         Y_right = eo['pdist-jaccard']
+         Y_test1 = wpdist(X, 'jaccard')
+-        _assert_within_tol(Y_test1, Y_right, eps)
++        _assert_within_tol(Y_test1, Y_right, rtol=eps)
+ 
+     def test_pdist_jaccard_random_nonC(self):
+-        eps = 1e-08
++        eps = 1e-8
+         X = eo['pdist-boolean-inp']
+         Y_right = eo['pdist-jaccard']
+         Y_test2 = wpdist(X, 'test_jaccard')
+-        _assert_within_tol(Y_test2, Y_right, eps)
++        _assert_within_tol(Y_test2, Y_right, rtol=eps)
+ 
+     def test_pdist_djaccard_random(self):
+-        eps = 1e-08
++        eps = 1e-8
+         X = np.float64(eo['pdist-boolean-inp'])
+         Y_right = eo['pdist-jaccard']
+         Y_test1 = wpdist(X, 'jaccard')
+-        _assert_within_tol(Y_test1, Y_right, eps)
++        _assert_within_tol(Y_test1, Y_right, rtol=eps)
+ 
+     def test_pdist_djaccard_random_float32(self):
+-        eps = 1e-08
++        eps = 1e-8
+         X = np.float32(eo['pdist-boolean-inp'])
+         Y_right = eo['pdist-jaccard']
+         Y_test1 = wpdist(X, 'jaccard')
+-        _assert_within_tol(Y_test1, Y_right, eps)
++        _assert_within_tol(Y_test1, Y_right, rtol=eps)
+ 
+     def test_pdist_djaccard_allzeros(self):
+-        eps = 1e-08
++        eps = 1e-15
+         Y = pdist(np.zeros((5, 3)), 'jaccard')
+-        _assert_within_tol(np.zeros(10), Y, eps)
++        _assert_within_tol(np.zeros(10), Y, rtol=eps)
+ 
+     def test_pdist_djaccard_random_nonC(self):
+-        eps = 1e-08
++        eps = 1e-8
+         X = np.float64(eo['pdist-boolean-inp'])
+         Y_right = eo['pdist-jaccard']
+         Y_test2 = wpdist(X, 'test_jaccard')
+-        _assert_within_tol(Y_test2, Y_right, eps)
++        _assert_within_tol(Y_test2, Y_right, rtol=eps)
+ 
+     def test_pdist_jensenshannon_random(self):
+-        eps = 1e-08
++        eps = 1e-11
+         X = eo['pdist-double-inp']
+         Y_right = eo['pdist-jensenshannon']
+         Y_test1 = pdist(X, 'jensenshannon')
+-        _assert_within_tol(Y_test1, Y_right, eps)
++        _assert_within_tol(Y_test1, Y_right, rtol=eps)
+ 
+     def test_pdist_jensenshannon_random_float32(self):
+-        eps = 1e-07
++        eps = 1e-8
+         X = np.float32(eo['pdist-double-inp'])
+         Y_right = eo['pdist-jensenshannon']
+         Y_test1 = pdist(X, 'jensenshannon')
+-        _assert_within_tol(Y_test1, Y_right, eps, verbose > 2)
++        _assert_within_tol(Y_test1, Y_right, rtol=eps, verbose_=verbose > 2)
+ 
+     def test_pdist_jensenshannon_random_nonC(self):
+-        eps = 1e-08
++        eps = 1e-11
+         X = eo['pdist-double-inp']
+         Y_right = eo['pdist-jensenshannon']
+         Y_test2 = pdist(X, 'test_jensenshannon')
+-        _assert_within_tol(Y_test2, Y_right, eps)
++        _assert_within_tol(Y_test2, Y_right, rtol=eps)
+ 
+     def test_pdist_jensenshannon_iris(self):
+         if _is_32bit():
+             # Test failing on 32-bit Linux on Azure otherwise, see gh-12810
+             eps = 1.5e-10
+         else:
+-            eps = 1e-12
++            eps = 1e-10
+ 
+         X = eo['iris']
+         Y_right = eo['pdist-jensenshannon-iris']
+         Y_test1 = pdist(X, 'jensenshannon')
+-        _assert_within_tol(Y_test1, Y_right, eps)
++        _assert_within_tol(Y_test1, Y_right, rtol=eps)
+ 
+     def test_pdist_jensenshannon_iris_float32(self):
+-        eps = 1e-06
++        eps = 1e-5
+         X = np.float32(eo['iris'])
+         Y_right = eo['pdist-jensenshannon-iris']
+         Y_test1 = pdist(X, 'jensenshannon')
+-        _assert_within_tol(Y_test1, Y_right, atol=eps, verbose_=verbose > 2)
++        _assert_within_tol(Y_test1, Y_right, rtol=eps, verbose_=verbose > 2)
+ 
+     def test_pdist_jensenshannon_iris_nonC(self):
+-        eps = 5e-12
++        eps = 5e-5
+         X = eo['iris']
+         Y_right = eo['pdist-jensenshannon-iris']
+         Y_test2 = pdist(X, 'test_jensenshannon')
+-        _assert_within_tol(Y_test2, Y_right, eps)
++        _assert_within_tol(Y_test2, Y_right, rtol=eps)
+ 
+     def test_pdist_djaccard_allzeros_nonC(self):
+-        eps = 1e-08
++        eps = 1e-15
+         Y = pdist(np.zeros((5, 3)), 'test_jaccard')
+-        _assert_within_tol(np.zeros(10), Y, eps)
++        _assert_within_tol(np.zeros(10), Y, rtol=eps)
+ 
+     def test_pdist_chebyshev_random(self):
+-        eps = 1e-08
++        eps = 1e-8
+         X = eo['pdist-double-inp']
+         Y_right = eo['pdist-chebyshev']
+         Y_test1 = pdist(X, 'chebyshev')
+-        _assert_within_tol(Y_test1, Y_right, eps)
++        _assert_within_tol(Y_test1, Y_right, rtol=eps)
+ 
+     def test_pdist_chebyshev_random_float32(self):
+-        eps = 1e-07
++        eps = 1e-7
+         X = np.float32(eo['pdist-double-inp'])
+         Y_right = eo['pdist-chebyshev']
+         Y_test1 = pdist(X, 'chebyshev')
+-        _assert_within_tol(Y_test1, Y_right, atol=eps, verbose_=verbose > 2)
++        _assert_within_tol(Y_test1, Y_right, rtol=eps, verbose_=verbose > 2)
+ 
+     def test_pdist_chebyshev_random_nonC(self):
+-        eps = 1e-08
++        eps = 1e-8
+         X = eo['pdist-double-inp']
+         Y_right = eo['pdist-chebyshev']
+         Y_test2 = pdist(X, 'test_chebyshev')
+-        _assert_within_tol(Y_test2, Y_right, eps)
++        _assert_within_tol(Y_test2, Y_right, rtol=eps)
+ 
+     def test_pdist_chebyshev_iris(self):
+-        eps = 1e-15
++        eps = 1e-14
+         X = eo['iris']
+         Y_right = eo['pdist-chebyshev-iris']
+         Y_test1 = pdist(X, 'chebyshev')
+-        _assert_within_tol(Y_test1, Y_right, eps)
++        _assert_within_tol(Y_test1, Y_right, rtol=eps)
+ 
+     def test_pdist_chebyshev_iris_float32(self):
+-        eps = 1e-06
++        eps = 1e-5
+         X = np.float32(eo['iris'])
+         Y_right = eo['pdist-chebyshev-iris']
+         Y_test1 = pdist(X, 'chebyshev')
+-        _assert_within_tol(Y_test1, Y_right, atol=eps, verbose_=verbose > 2)
++        _assert_within_tol(Y_test1, Y_right, rtol=eps, verbose_=verbose > 2)
+ 
+     def test_pdist_chebyshev_iris_nonC(self):
+-        eps = 1e-15
++        eps = 1e-14
+         X = eo['iris']
+         Y_right = eo['pdist-chebyshev-iris']
+         Y_test2 = pdist(X, 'test_chebyshev')
+-        _assert_within_tol(Y_test2, Y_right, eps)
++        _assert_within_tol(Y_test2, Y_right, rtol=eps)
+ 
+     def test_pdist_matching_mtica1(self):
+         # Test matching(*,*) with mtica example #1 (nums).
+@@ -1373,10 +1373,10 @@ def test_pdist_canberra_match(self):
+         D = eo['iris']
+         if verbose > 2:
+             print(D.shape, D.dtype)
+-        eps = 1e-10
++        eps = 1e-15
+         y1 = wpdist_no_const(D, ""canberra"")
+         y2 = wpdist_no_const(D, ""test_canberra"")
+-        _assert_within_tol(y1, y2, atol=eps, verbose_=verbose > 2)
++        _assert_within_tol(y1, y2, rtol=eps, verbose_=verbose > 2)
+ 
+     def test_pdist_canberra_ticket_711(self):
+         # Test pdist(X, 'canberra') to see if Canberra gives the right result
+@@ -1474,7 +1474,7 @@ def test_pdist_dtype_equivalence(self):
+ 
+     def test_pdist_out(self):
+         # Test that out parameter works properly
+-        eps = 1e-07
++        eps = 1e-15
+         X = eo['random-float32-data'][::5, ::2]
+         out_size = int((X.shape[0] * (X.shape[0] - 1)) / 2)
+         for metric in _METRICS_NAMES:
+@@ -1485,7 +1485,7 @@ def test_pdist_out(self):
+             Y_right = pdist(X, metric, **kwargs)
+             Y_test1 = pdist(X, metric, out=out1, **kwargs)
+             # test that output is numerically equivalent
+-            _assert_within_tol(Y_test1, Y_right, eps)
++            _assert_within_tol(Y_test1, Y_right, rtol=eps)
+             # test that Y_test1 and out1 are the same object
+             assert_(Y_test1 is out1)
+             # test for incorrect shape
+@@ -1501,7 +1501,7 @@ def test_pdist_out(self):
+     def test_striding(self):
+         # test that striding is handled correct with calls to
+         # _copy_array_if_base_present
+-        eps = 1e-07
++        eps = 1e-15
+         X = eo['random-float32-data'][::5, ::2]
+         X_copy = X.copy()
+ 
+"
+32,"diff --git a/scipy/spatial/tests/test_distance.py b/scipy/spatial/tests/test_distance.py
+index 251b0451ea86..b9e69bbc425f 100644
+--- a/scipy/spatial/tests/test_distance.py
++++ b/scipy/spatial/tests/test_distance.py
+@@ -575,7 +575,7 @@ def test_cdist_dtype_equivalence(self):
+                 else:
+                     for new_type in test[1]:
+                         y2 = cdist(new_type(X1), new_type(X2), metric=metric)
+-                        _assert_within_tol(y1, y2, rtol=eps, verbose_=verbose>2)
++                        _assert_within_tol(y1, y2, rtol=eps, verbose_=verbose > 2)
+ 
+     def test_cdist_out(self):
+         # Test that out parameter works properly
+@@ -1470,7 +1470,7 @@ def test_pdist_dtype_equivalence(self):
+                 else:
+                     for new_type in test[1]:
+                         y2 = pdist(new_type(X1), metric=metric)
+-                        _assert_within_tol(y1, y2, rtol=eps, verbose_=verbose>2)
++                        _assert_within_tol(y1, y2, rtol=eps, verbose_=verbose > 2)
+ 
+     def test_pdist_out(self):
+         # Test that out parameter works properly
+"
+33,"diff --git a/doc/source/dev/contributor/quickerstart_conda.rst b/doc/source/dev/contributor/quickerstart_conda.rst
+index 656f411a6d80..20c16066c451 100644
+--- a/doc/source/dev/contributor/quickerstart_conda.rst
++++ b/doc/source/dev/contributor/quickerstart_conda.rst
+@@ -18,9 +18,6 @@ your `SciPy <https://github.com/scipy/scipy>`_ clone::
+     git submodule update --init
+ 
+     # Build SciPy for development work plus run tests
+-    python runtests.py    # Alternatively, it's fine to use `python setup.py develop`
+-
+-    # Install SciPy in develop mode in conda
+-    conda develop .
++    python runtests.py
+ 
+ For more detailed instructions, see the other :ref:`dev-env` guides.
+"
+34,"diff --git a/scipy/spatial/tests/test_distance.py b/scipy/spatial/tests/test_distance.py
+index 2aa97a4c712d..251b0451ea86 100644
+--- a/scipy/spatial/tests/test_distance.py
++++ b/scipy/spatial/tests/test_distance.py
+@@ -439,24 +439,24 @@ def _my_metric(x, y, arg, kwarg=1, kwarg2=2):
+                               arg=1.1, kwarg2=3.3), 5.4)
+ 
+     def test_cdist_euclidean_random_unicode(self):
+-        eps = 1e-07
++        eps = 1e-15
+         X1 = eo['cdist-X1']
+         X2 = eo['cdist-X2']
+         Y1 = wcdist_no_const(X1, X2, 'euclidean')
+         Y2 = wcdist_no_const(X1, X2, 'test_euclidean')
+-        _assert_within_tol(Y1, Y2, eps, verbose > 2)
++        _assert_within_tol(Y1, Y2, rtol=eps, verbose_=verbose > 2)
+ 
+     @pytest.mark.parametrize(""p"", [1.0, 1.23, 2.0, 3.8, 4.6, np.inf])
+     def test_cdist_minkowski_random(self, p):
+-        eps = 1e-07
++        eps = 1e-15
+         X1 = eo['cdist-X1']
+         X2 = eo['cdist-X2']
+         Y1 = wcdist_no_const(X1, X2, 'minkowski', p=p)
+         Y2 = wcdist_no_const(X1, X2, 'test_minkowski', p=p)
+-        _assert_within_tol(Y1, Y2, eps, verbose > 2)
++        _assert_within_tol(Y1, Y2, rtol=eps, verbose_=verbose > 2)
+ 
+     def test_cdist_cosine_random(self):
+-        eps = 1e-07
++        eps = 1e-14
+         X1 = eo['cdist-X1']
+         X2 = eo['cdist-X2']
+         Y1 = wcdist(X1, X2, 'cosine')
+@@ -467,7 +467,7 @@ def norms(X):
+ 
+         Y2 = 1 - np.dot((X1 / norms(X1)), (X2 / norms(X2)).T)
+ 
+-        _assert_within_tol(Y1, Y2, eps, verbose > 2)
++        _assert_within_tol(Y1, Y2, rtol=eps, verbose_=verbose > 2)
+ 
+     def test_cdist_mahalanobis(self):
+         # 1-dimensional observations
+@@ -575,11 +575,11 @@ def test_cdist_dtype_equivalence(self):
+                 else:
+                     for new_type in test[1]:
+                         y2 = cdist(new_type(X1), new_type(X2), metric=metric)
+-                        _assert_within_tol(y1, y2, eps, verbose > 2)
++                        _assert_within_tol(y1, y2, rtol=eps, verbose_=verbose>2)
+ 
+     def test_cdist_out(self):
+         # Test that out parameter works properly
+-        eps = 1e-07
++        eps = 1e-15
+         X1 = eo['cdist-X1']
+         X2 = eo['cdist-X2']
+         out_r, out_c = X1.shape[0], X2.shape[0]
+@@ -592,7 +592,7 @@ def test_cdist_out(self):
+             Y1 = cdist(X1, X2, metric, **kwargs)
+             Y2 = cdist(X1, X2, metric, out=out1, **kwargs)
+             # test that output is numerically equivalent
+-            _assert_within_tol(Y1, Y2, eps, verbose > 2)
++            _assert_within_tol(Y1, Y2, rtol=eps, verbose_=verbose > 2)
+             # test that Y_test1 and out1 are the same object
+             assert_(Y2 is out1)
+             # test for incorrect shape
+@@ -616,7 +616,7 @@ def test_cdist_out(self):
+     def test_striding(self):
+         # test that striding is handled correct with calls to
+         # _copy_array_if_base_present
+-        eps = 1e-07
++        eps = 1e-15
+         X1 = eo['cdist-X1'][::2, ::2]
+         X2 = eo['cdist-X2'][::2, ::2]
+         X1_copy = X1.copy()
+@@ -638,7 +638,7 @@ def test_striding(self):
+             Y1 = cdist(X1, X2, metric, **kwargs)
+             Y2 = cdist(X1_copy, X2_copy, metric, **kwargs)
+             # test that output is numerically equivalent
+-            _assert_within_tol(Y1, Y2, eps, verbose > 2)
++            _assert_within_tol(Y1, Y2, rtol=eps, verbose_=verbose > 2)
+ 
+     def test_cdist_refcount(self):
+         for metric in _METRICS_NAMES:
+@@ -747,7 +747,7 @@ def test_pdist_euclidean_iris_float32(self):
+         X = np.float32(eo['iris'])
+         Y_right = eo['pdist-euclidean-iris']
+         Y_test1 = wpdist_no_const(X, 'euclidean')
+-        _assert_within_tol(Y_test1, Y_right, eps, verbose > 2)
++        _assert_within_tol(Y_test1, Y_right, atol=eps, verbose_=verbose > 2)
+ 
+     @pytest.mark.slow
+     def test_pdist_euclidean_iris_nonC(self):
+@@ -846,7 +846,7 @@ def test_pdist_cosine_iris_float32(self):
+         X = np.float32(eo['iris'])
+         Y_right = eo['pdist-cosine-iris']
+         Y_test1 = wpdist(X, 'cosine')
+-        _assert_within_tol(Y_test1, Y_right, eps, verbose > 2)
++        _assert_within_tol(Y_test1, Y_right, atol=eps, verbose_=verbose > 2)
+ 
+     @pytest.mark.slow
+     def test_pdist_cosine_iris_nonC(self):
+@@ -900,7 +900,7 @@ def test_pdist_cityblock_iris_float32(self):
+         X = np.float32(eo['iris'])
+         Y_right = eo['pdist-cityblock-iris']
+         Y_test1 = wpdist_no_const(X, 'cityblock')
+-        _assert_within_tol(Y_test1, Y_right, eps, verbose > 2)
++        _assert_within_tol(Y_test1, Y_right, atol=eps, verbose_=verbose > 2)
+ 
+     @pytest.mark.slow
+     def test_pdist_cityblock_iris_nonC(self):
+@@ -947,7 +947,7 @@ def test_pdist_correlation_iris_float32(self):
+         X = eo['iris']
+         Y_right = np.float32(eo['pdist-correlation-iris'])
+         Y_test1 = wpdist(X, 'correlation')
+-        _assert_within_tol(Y_test1, Y_right, eps, verbose > 2)
++        _assert_within_tol(Y_test1, Y_right, atol=eps, verbose_=verbose > 2)
+ 
+     @pytest.mark.slow
+     def test_pdist_correlation_iris_nonC(self):
+@@ -1024,7 +1024,7 @@ def test_pdist_minkowski_5_8_iris_float32(self):
+         X = np.float32(eo['iris'])
+         Y_right = eo['pdist-minkowski-5.8-iris']
+         Y_test1 = wpdist_no_const(X, 'minkowski', p=5.8)
+-        _assert_within_tol(Y_test1, Y_right, eps, verbose > 2)
++        _assert_within_tol(Y_test1, Y_right, atol=eps, verbose_=verbose > 2)
+ 
+     @pytest.mark.slow
+     def test_pdist_minkowski_5_8_iris_nonC(self):
+@@ -1178,7 +1178,7 @@ def test_pdist_jensenshannon_iris_float32(self):
+         X = np.float32(eo['iris'])
+         Y_right = eo['pdist-jensenshannon-iris']
+         Y_test1 = pdist(X, 'jensenshannon')
+-        _assert_within_tol(Y_test1, Y_right, eps, verbose > 2)
++        _assert_within_tol(Y_test1, Y_right, atol=eps, verbose_=verbose > 2)
+ 
+     def test_pdist_jensenshannon_iris_nonC(self):
+         eps = 5e-12
+@@ -1204,7 +1204,7 @@ def test_pdist_chebyshev_random_float32(self):
+         X = np.float32(eo['pdist-double-inp'])
+         Y_right = eo['pdist-chebyshev']
+         Y_test1 = pdist(X, 'chebyshev')
+-        _assert_within_tol(Y_test1, Y_right, eps, verbose > 2)
++        _assert_within_tol(Y_test1, Y_right, atol=eps, verbose_=verbose > 2)
+ 
+     def test_pdist_chebyshev_random_nonC(self):
+         eps = 1e-08
+@@ -1225,7 +1225,7 @@ def test_pdist_chebyshev_iris_float32(self):
+         X = np.float32(eo['iris'])
+         Y_right = eo['pdist-chebyshev-iris']
+         Y_test1 = pdist(X, 'chebyshev')
+-        _assert_within_tol(Y_test1, Y_right, eps, verbose > 2)
++        _assert_within_tol(Y_test1, Y_right, atol=eps, verbose_=verbose > 2)
+ 
+     def test_pdist_chebyshev_iris_nonC(self):
+         eps = 1e-15
+@@ -1376,7 +1376,7 @@ def test_pdist_canberra_match(self):
+         eps = 1e-10
+         y1 = wpdist_no_const(D, ""canberra"")
+         y2 = wpdist_no_const(D, ""test_canberra"")
+-        _assert_within_tol(y1, y2, eps, verbose > 2)
++        _assert_within_tol(y1, y2, atol=eps, verbose_=verbose > 2)
+ 
+     def test_pdist_canberra_ticket_711(self):
+         # Test pdist(X, 'canberra') to see if Canberra gives the right result
+@@ -1384,7 +1384,7 @@ def test_pdist_canberra_ticket_711(self):
+         eps = 1e-8
+         pdist_y = wpdist_no_const(([3.3], [3.4]), ""canberra"")
+         right_y = 0.01492537
+-        _assert_within_tol(pdist_y, right_y, eps, verbose > 2)
++        _assert_within_tol(pdist_y, right_y, atol=eps, verbose_=verbose > 2)
+ 
+     def test_pdist_custom_notdouble(self):
+         # tests that when using a custom metric the data type is not altered
+@@ -1470,7 +1470,7 @@ def test_pdist_dtype_equivalence(self):
+                 else:
+                     for new_type in test[1]:
+                         y2 = pdist(new_type(X1), metric=metric)
+-                        _assert_within_tol(y1, y2, eps, verbose > 2)
++                        _assert_within_tol(y1, y2, rtol=eps, verbose_=verbose>2)
+ 
+     def test_pdist_out(self):
+         # Test that out parameter works properly
+@@ -1516,7 +1516,7 @@ def test_striding(self):
+             Y1 = pdist(X, metric, **kwargs)
+             Y2 = pdist(X_copy, metric, **kwargs)
+             # test that output is numerically equivalent
+-            _assert_within_tol(Y1, Y2, eps, verbose > 2)
++            _assert_within_tol(Y1, Y2, rtol=eps, verbose_=verbose > 2)
+ 
+ class TestSomeDistanceFunctions:
+ 
+"
+35,"diff --git a/scipy/sparse/linalg/_isolve/lsqr.py b/scipy/sparse/linalg/_isolve/lsqr.py
+index 74e17a7bd485..85bf3312b083 100644
+--- a/scipy/sparse/linalg/_isolve/lsqr.py
++++ b/scipy/sparse/linalg/_isolve/lsqr.py
+@@ -99,7 +99,7 @@ def lsqr(A, b, damp=0.0, atol=1e-6, btol=1e-6, conlim=1e8,
+     of equations.
+ 
+     The function solves ``Ax = b``  or  ``min ||Ax - b||^2`` or
+-    ``min ||Ax - b||^2 + d^2 ||x||^2``.
++    ``min ||Ax - b||^2 + d^2 ||x - x0||^2``.
+ 
+     The matrix A may be square or rectangular (over-determined or
+     under-determined), and may have any rank.
+@@ -111,8 +111,8 @@ def lsqr(A, b, damp=0.0, atol=1e-6, btol=1e-6, conlim=1e8,
+       2. Linear least squares  --    solve  Ax = b
+                                      in the least-squares sense
+ 
+-      3. Damped least squares  --    solve  (   A    )x = ( b )
+-                                            ( damp*I )    ( 0 )
++      3. Damped least squares  --    solve  (   A    )*x = (    b    )
++                                            ( damp*I )     ( damp*x0 )
+                                      in the least-squares sense
+ 
+     Parameters
+@@ -176,14 +176,14 @@ def lsqr(A, b, damp=0.0, atol=1e-6, btol=1e-6, conlim=1e8,
+     r1norm : float
+         ``norm(r)``, where ``r = b - Ax``.
+     r2norm : float
+-        ``sqrt( norm(r)^2  +  damp^2 * norm(x)^2 )``.  Equal to `r1norm` if
+-        ``damp == 0``.
++        ``sqrt( norm(r)^2  +  damp^2 * norm(x - x0)^2 )``.  Equal to `r1norm`
++        if ``damp == 0``.
+     anorm : float
+         Estimate of Frobenius norm of ``Abar = [[A]; [damp*I]]``.
+     acond : float
+         Estimate of ``cond(Abar)``.
+     arnorm : float
+-        Estimate of ``norm(A'@r - damp^2*x)``.
++        Estimate of ``norm(A'@r - damp^2*(x - x0))``.
+     xnorm : float
+         ``norm(x)``
+     var : ndarray of float
+@@ -496,9 +496,9 @@ def lsqr(A, b, damp=0.0, atol=1e-6, btol=1e-6, conlim=1e8,
+         # Distinguish between
+         #    r1norm = ||b - Ax|| and
+         #    r2norm = rnorm in current code
+-        #           = sqrt(r1norm^2 + damp^2*||x||^2).
++        #           = sqrt(r1norm^2 + damp^2*||x - x0||^2).
+         #    Estimate r1norm from
+-        #    r1norm = sqrt(r2norm^2 - damp^2*||x||^2).
++        #    r1norm = sqrt(r2norm^2 - damp^2*||x - x0||^2).
+         # Although there is cancellation, it might be accurate enough.
+         if damp > 0:
+             r1sq = rnorm**2 - dampsq * xxnorm
+"
+36,"diff --git a/azure-pipelines.yml b/azure-pipelines.yml
+index 93f67fe2bd96..0b531424e99c 100644
+--- a/azure-pipelines.yml
++++ b/azure-pipelines.yml
+@@ -101,7 +101,7 @@ stages:
+         test_mode: fast
+         numpy_spec: ""numpy==1.19.3""
+         use_sdist: true
+-  - job: wheel_optimized_gcc48
++  - job: wheel_optimized_gcc6
+     pool:
+       vmImage: 'ubuntu-18.04'
+     variables:
+@@ -109,15 +109,15 @@ stages:
+       # pytest-xdist plugin for load scheduling its workers don't pick up the
+       # flag. This environment variable starts all Py instances in -OO mode.
+       PYTHONOPTIMIZE: 2
+-      # Use gcc version 4.8
+-      CC: gcc-4.8
+-      CXX: g++-4.8
++      # Use gcc version 6
++      CC: gcc-6
++      CXX: g++-6
+     steps:
+     - script: |
+         set -euo pipefail
+         sudo apt update -y
+-        sudo apt install -y g++-4.8 gcc-4.8
+-      displayName: 'Install GCC 4.8'
++        sudo apt install -y g++-6 gcc-6
++      displayName: 'Install GCC 6'
+     - task: UsePythonVersion@0
+       inputs:
+         versionSpec: '3.8'
+"
+37,"diff --git a/scipy/fft/_realtransforms.py b/scipy/fft/_realtransforms.py
+index cef92ebf78b9..498a0aa8ef1a 100644
+--- a/scipy/fft/_realtransforms.py
++++ b/scipy/fft/_realtransforms.py
+@@ -281,11 +281,18 @@ def dct(x, type=2, n=None, axis=-1, norm=None, overwrite_x=False, workers=None):
+     For a single dimension array ``x``, ``dct(x, norm='ortho')`` is equal to
+     MATLAB ``dct(x)``.
+ 
++    .. warning:: For ``type in {1, 2, 3}``, ``norm=""ortho""`` breaks the direct
++                 correspondence with the direct Fourier transform.
++
++    For ``norm=""ortho""`` both the `dct` and `idct` are made orthogonal through
++    scaling by the same overall factor in both directions and for types 1, 2
++    and 3 the transform definition is modified to give orthogonality of the DCT
++    matrix (see below).
++
+     For ``norm=""backward""``, there is no scaling on `dct` and the `idct` is
+     scaled by ``1/N`` where ``N`` is the ""logical"" size of the DCT. For
+     ``norm=""forward""`` the ``1/N`` normalization is applied to the forward
+-    `dct` instead and the `idct` is unnormalized. For ``norm='ortho'`` both
+-    directions are scaled by the same factor of ``1/sqrt(N)``.
++    `dct` instead and the `idct` is unnormalized.
+ 
+     There are, theoretically, 8 types of the DCT, only the first 4 types are
+     implemented in SciPy.'The' DCT generally refers to DCT type 2, and 'the'
+@@ -435,6 +442,14 @@ def idct(x, type=2, n=None, axis=-1, norm=None, overwrite_x=False,
+     For a single dimension array `x`, ``idct(x, norm='ortho')`` is equal to
+     MATLAB ``idct(x)``.
+ 
++    .. warning:: For ``type in {1, 2, 3}``, ``norm=""ortho""`` breaks the direct
++                 correspondence with the inverse direct Fourier transform.
++
++    For ``norm=""ortho""`` both the `dct` and `idct` are made orthogonal
++    through scaling by the same overall factor in both directions and for types
++    1, 2 and 3 the transform definition is modified to give orthogonality of
++    the IDCT matrix (see `dct` for the full definitions).
++
+     'The' IDCT is the IDCT-II, which is the same as the normalized DCT-III.
+ 
+     The IDCT is equivalent to a normal DCT except for the normalization and
+@@ -494,12 +509,16 @@ def dst(x, type=2, n=None, axis=-1, norm=None, overwrite_x=False, workers=None):
+ 
+     Notes
+     -----
+-    For a single dimension array ``x``.
++    .. warning:: For ``type in {2, 3}``, ``norm=""ortho""`` breaks the direct
++                 correspondence with the inverse direct Fourier transform.
++
++    For ``norm=""ortho""`` both the `dst` and `idst` are made orthogonal through
++    scaling by the same overall factor in both directions and for types 2 and
++    3 the transform definition is modified to give orthogonality of the DST
++    matrix (see below).
+ 
+     For ``norm=""backward""``, there is no scaling on the `dst` and the `idst` is
+-    scaled by ``1/N`` where ``N`` is the ""logical"" size of the DST. For
+-    ``norm='ortho'`` both directions are scaled by the same factor
+-    ``1/sqrt(N)``.
++    scaled by ``1/N`` where ``N`` is the ""logical"" size of the DST.
+ 
+     There are, theoretically, 8 types of the DST for different combinations of
+     even/odd boundary conditions and boundary off sets [1]_, only the first
+@@ -613,6 +632,13 @@ def idst(x, type=2, n=None, axis=-1, norm=None, overwrite_x=False,
+ 
+     Notes
+     -----
++    .. warning:: For ``type in {2, 3}``, ``norm=""ortho""`` breaks the direct
++                 correspondence with the inverse direct Fourier transform.
++
++    For ``norm=""ortho""`` both the `dst` and `idst` are made orthogonal through
++    scaling by the same overall factor in both directions and for types 2 and
++    3 the transform definition is modified to give orthogonality of the IDST
++    matrix (see below).
+ 
+     'The' IDST is the IDST-II, which is the same as the normalized DST-III.
+ 
+"

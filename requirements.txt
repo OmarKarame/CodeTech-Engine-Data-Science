@@ -3,6 +3,7 @@ nbresult
 colorama
 ipdb
 ipykernel
+unidecode
 yapf
 matplotlib
 pygeohash
