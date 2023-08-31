@@ -1,5 +1,5 @@
 from transformers import AutoTokenizer, AutoModelForSeq2SeqLM, DataCollatorForSeq2Seq, Seq2SeqTrainingArguments, Seq2SeqTrainer, pipeline
-#T5Tokenizer
+# T5Tokenizer
 import numpy as np
 import pandas as pd
 from datasets import Dataset, DatasetDict
