@@ -11,6 +11,18 @@ def find_git_directory():
         path = os.path.dirname(path)
     return None
 
+def commit_empty_message():
+    repo_path = find_git_directory()
+    repo = git.Repo(f'{repo_path}')
+    index = repo.index
+    for item in repo.index.diff(None):
+        item.commit("")
+        click.echo(f'File {item.a_path} committed!')
+
+
+
+
+
 
 # https://github.com/OmarKarame/Commit-To-Excellence-Backend
 # OmarKarame/Commit-To-Excellence-Backend
@@ -69,13 +81,6 @@ def get_diff():
     staged_files = [item.a_path for item in repo.index.diff(None)]
 
     diffs = repo.index.diff(None)
-    # print(diffs[0].a_blob.data_stream.read())
-    # print( )
-    # print( )
-    # print( )
-    # print( )
-    # print(diffs[0].b_blob.data_stream.read())
-    # print(staged_files)
 
     for diff in diffs:
         print("File:", diff.a_path)
@@ -92,4 +97,4 @@ def get_diff():
 
 
 if __name__ == '__main__':
-    status()
+    commit_empty_message()
