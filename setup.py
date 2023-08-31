@@ -6,7 +6,7 @@ with open("requirements.txt") as f:
     content = f.readlines()
 requirements = [x.strip() for x in content if "git+" not in x]
 
-setup(name='commit-to-excellence',
+setup(name='cte',
       version="0.0.7",
       description="Generating commit messages using AI",
       license="MIT",
