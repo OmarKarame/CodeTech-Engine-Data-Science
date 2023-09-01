@@ -1,5 +1,6 @@
 from setuptools import find_packages
 from setuptools import setup
+import pandas as pd
 
 with open("requirements.txt") as f:
     content = f.readlines()
@@ -18,3 +19,6 @@ setup(name='cte',
       # include_package_data: to install data from MANIFEST.in
       include_package_data=True,
       zip_safe=False)
+
+
+pd.DataFrame()

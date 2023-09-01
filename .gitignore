@@ -1,6 +1,8 @@
 # Data files and folders
 raw_data/
-
+ethan_stuff/
+cli_playground/
+Commit-To-Excellence-Backend/cte/ethan's_stuff/GitHub API.ipynb
 # Byte-compiled / optimized / DLL files
 __pycache__/
 *.py[cod]
