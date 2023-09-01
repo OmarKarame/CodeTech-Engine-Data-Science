@@ -4,62 +4,16 @@ import re
 
 def python_filter(df: pd.DataFrame) -> pd.DataFrame:
     """Takes Pandas DataFrame as input and returns o"""
+    # Convert the 'diff' column to strings and handle NaN values
+    df['diff'] = df['diff'].astype(str)
+
     return df[df['diff'].str.contains(r'\.py\b')].reset_index(drop=True)
 
-# def normalize_whitespace(df: pd.DataFrame) -> pd.DataFrame:
-#     """Normalize whitespaces in the 'diff' column of the dataframe."""
-#     df['diff'] = df['diff'].str.replace(r'\s+', ' ').str.strip()
-#     return df.reset_index(drop=True)
-
-def handle_non_ascii(df: pd.DataFrame) -> pd.DataFrame:
-    """Convert non-ASCII characters to their closest ASCII equivalents."""
-    df['diff'] = df['diff'].apply(unidecode)
-    return df.reset_index(drop=True)
-
-def normalize_file_paths(df: pd.DataFrame) -> pd.DataFrame:
-    """Normalize file paths, masking user-specific details."""
-    df['diff'] = df['diff'].str.replace(r'/home/[a-zA-Z0-9_]+/', '/home/user/')
-    return df.reset_index(drop=True)
-
-# def uniform_line_endings(df: pd.DataFrame) -> pd.DataFrame:
-#     """Ensure uniform line endings by converting all to Unix-style."""
-#     df['diff'] = df['diff'].str.replace(r'\r\n', '\n')
-#     return df.reset_index(drop=True)
 
 def exclude_merge_commits(df: pd.DataFrame) -> pd.DataFrame:
     """Exclude potential merge commits based on a heuristic."""
     df = df[~df['diff'].str.contains(r'Merge branch')]
     return df.reset_index(drop=True)
-
-# def filter_noise_commits(df: pd.DataFrame) -> pd.DataFrame:
-#     """Exclude rows with noisy commit messages like 'WIP', 'fix', etc."""
-#     noise_patterns = ['WIP', 'fix', 'minor change']
-#     for pattern in noise_patterns:
-#         df = df[~df['Git Commit Messages'].str.contains(pattern, case=False)]
-#     return df.reset_index(drop=True)
-
-def mask_dates_times(df: pd.DataFrame) -> pd.DataFrame:
-    """Mask specific date and time references in the 'diff' column."""
-    date_pattern = r'\d{4}-\d{2}-\d{2}'
-    time_pattern = r'\d{2}:\d{2}:\d{2}'
-    df['diff'] = df['diff'].str.replace(date_pattern, '<DATE>').str.replace(time_pattern, '<TIME>')
-    return df.reset_index(drop=True)
-
-# def pad_newlines(df: pd.DataFrame) -> pd.DataFrame:
-#     """
-#     Add spaces before and after newline characters in the 'diff' column to ensure tokenization doesn't join them with words.
-
-#     Args:
-#     - df (pd.DataFrame): Input dataframe containing the 'diff' column.
-
-#     Returns:
-#     - pd.DataFrame: A dataframe with newline characters in 'diff' column appropriately padded.
-#     """
-#     # Add spaces before and after newline characters
-#     df['diff'] = df['diff'].str.replace(r'(\S)(\n)(\S)', r'\1 \2 \3')
-
-#     return df.reset_index(drop=True)
-
 
 # WARNING THE FUNCTION BELOW COULD LEAD TO LOTS OF DATA LOSS!!!
 def exclude_multi_file_diffs(df: pd.DataFrame) -> pd.DataFrame:
@@ -80,8 +34,7 @@ def exclude_multi_file_diffs(df: pd.DataFrame) -> pd.DataFrame:
 
     return df.reset_index(drop=True)
 
-import re
-
+# Do not run
 def replace_spaces_with_tabs(s):
     def replacer(match):
         num_spaces = len(match.group(0))
@@ -92,6 +45,7 @@ def replace_spaces_with_tabs(s):
     # Directly replacing all sequences of spaces using the replacer function
     return re.sub(r' +', replacer, s)
 
+# Do not run
 def extract_changes_and_context(diff_str: str) -> tuple:
     """
     Extracts changes and contextual lines from the given diff string.
@@ -128,7 +82,7 @@ def extract_changes_and_context(diff_str: str) -> tuple:
         if in_hunk:
             line = replace_spaces_with_tabs(line)
             if line.startswith("+"):
-                clean_diff.append("[sad]"+line[1:]+"[eadd]")
+                clean_diff.append("[sad]"+line[1:]+"[ead]")
             elif line.startswith("-"):
                 clean_diff.append("[ssb]"+line[1:]+"[esb]")
             else:
@@ -145,8 +99,22 @@ def diff_cleaner(df: pd.DataFrame) -> pd.DataFrame:
     df_copy["diff"] = df_copy["diff"].apply(extract_changes_and_context)
     return df_copy
 
+def pad_newlines(df: pd.DataFrame) -> pd.DataFrame:
+    """
+    Add spaces before and after newline characters in the 'diff' column to ensure tokenization doesn't join them with words.
 
-def full_preproc(df: pd.DataFrame) -> pd.DataFrame:
+    Args:
+    - df (pd.DataFrame): Input dataframe containing the 'diff' column.
+
+    Returns:
+    - pd.DataFrame: A dataframe with newline characters in 'diff' column appropriately padded.
+    """
+    # Add spaces before and after newline characters
+    df['diff'] = df['diff'].str.replace(r'(\S)(\n)(\S)', r'\1 \2 \3')
+
+    return df.reset_index(drop=True)
+
+def full_diff_preprocessor(df: pd.DataFrame) -> pd.DataFrame:
     """
     Apply a series of preprocessing functions to clean and normalize the 'diff' column of a dataframe.
 
@@ -158,19 +126,75 @@ def full_preproc(df: pd.DataFrame) -> pd.DataFrame:
     """
 
     # Apply each function in sequence
-    df = python_filter(df)
-    
-    df = normalize_whitespace(df)
-    df = handle_non_ascii(df)
-    df = normalize_file_paths(df)
-    df = uniform_line_endings(df)
-    df = exclude_merge_commits(df)
-    df = mask_dates_times(df)
-    df = pad_newlines(df)
-    df = exclude_multi_file_diffs(df)
+    df_copy = df.copy()
+    df_copy = python_filter(df_copy)
+    df_copy = exclude_merge_commits(df_copy)
+    df_copy = exclude_multi_file_diffs(df_copy)
+    df_copy = diff_cleaner(df_copy)
+    df_copy = pad_newlines(df_copy)
 
-    return df.reset_index(drop=True)
+    return df_copy.reset_index(drop=True)
 
+
+###########################################################################################################################################################################################
+# Message Cleaner
+
+#Do not run
+def remove_emojis(text: str) -> str:
+    """
+    Remove emojis from a given text string.
+
+    Args:
+    - text (str): Input text string.
+
+    Returns:
+    - str: Text string with emojis removed.
+    """
+    # Define the pattern for emojis
+    emoji_pattern = re.compile("["
+                               u"\U0001F600-\U0001F64F"  # emoticons
+                               u"\U0001F300-\U0001F5FF"  # symbols & pictographs
+                               u"\U0001F680-\U0001F6FF"  # transport & map symbols
+                               u"\U0001F700-\U0001F77F"  # alchemical symbols
+                               u"\U0001F780-\U0001F7FF"  # Geometric Shapes Extended
+                               u"\U0001F800-\U0001F8FF"  # Supplemental Arrows-C
+                               u"\U0001F900-\U0001F9FF"  # Supplemental Symbols and Pictographs
+                               u"\U0001FA00-\U0001FA6F"  # Chess Symbols
+                               u"\U0001FA70-\U0001FAFF"  # Symbols and Pictographs Extended-A
+                               u"\U00002702-\U000027B0"  # Dingbats
+                               u"\U000024C2-\U0001F251"  # flags (iOS)
+                               "]+", flags=re.UNICODE)
+
+    return emoji_pattern.sub(r'', text)
+
+
+def emoji_remover(df: pd.DataFrame) -> pd.DataFrame:
+    """
+    Removes emojis from message column
+
+    Args:
+    - df (pd.DataFrame): Input dataframe containing the 'message' column.
+
+    Returns:
+    - pd.DataFrame: A dataframe with emoji characters in 'message' column removed.
+    """
+    # Add spaces before and after newline characters
+
+    df_copy = df.copy()
+
+    df_copy["message"] = df_copy["message"].apply(remove_emojis)
+    return df_copy
+
+
+def replace_abbreviations(text):
+    words = text.split()
+    replaced_words = [python_dev_abbreviations.get(word.upper(), word) for word in words]
+    return ' '.join(replaced_words)
+
+def replace_abbreviations_in_dataframe(df: pd.DataFrame) -> pd.DataFrame:
+    df_copy = df.copy()
+    df_copy['message'] = df_copy['message'].apply(replace_abbreviations)
+    return df_copy
 
 
 
