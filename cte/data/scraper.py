@@ -62,3 +62,18 @@ def get_all_repo_commits(repo: str, headers : dict, tokens : list | str, max_pag
             }
         page = 1
         response = [["start"],["start"]]
+
+def get_last_commit(repo: str, headers : dict):
+    params = {
+        'per_page':1
+    }
+    url = f'https://api.github.com/repos/{repo}/commits'
+    response = requests.get(url, headers = headers, params = params)
+    if response.status_code != 200:
+        return "error"
+    sha = response.json()[0]["sha"]
+    diff_url = f'https://api.github.com/repos/{repo}/commits/{sha}'
+    diff_response = requests.get(diff_url, headers=headers)
+    if diff_response.status_code != 200:
+        return "error"
+    return diff_response.text
