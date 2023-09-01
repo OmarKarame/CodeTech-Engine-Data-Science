@@ -1,6 +1,8 @@
 import pandas as pd
 from unidecode import unidecode
 import re
+import sys
+import os
 
 def python_filter(df: pd.DataFrame) -> pd.DataFrame:
     """Takes Pandas DataFrame as input and returns o"""
@@ -99,6 +101,12 @@ def diff_cleaner(df: pd.DataFrame) -> pd.DataFrame:
     df_copy["diff"] = df_copy["diff"].apply(extract_changes_and_context)
     return df_copy
 
+def large_diff_remover(df: pd.DataFrame) -> pd.DataFrame:
+    df_copy = df.copy()
+    df_copy["diff_size"] = df_copy.apply(lambda x: sys.getsizeof(x["diff"]),axis=1)
+    df_clean = df_copy.query("diff_size < 3000").reset_index(drop=True).drop("diff_size", axis=1)
+    return df_clean
+
 def pad_newlines(df: pd.DataFrame) -> pd.DataFrame:
     """
     Add spaces before and after newline characters in the 'diff' column to ensure tokenization doesn't join them with words.
@@ -127,6 +135,7 @@ def full_diff_preprocessor(df: pd.DataFrame) -> pd.DataFrame:
 
     # Apply each function in sequence
     df_copy = df.copy()
+    df_copy = large_diff_remover(df_copy)
     df_copy = python_filter(df_copy)
     df_copy = exclude_merge_commits(df_copy)
     df_copy = exclude_multi_file_diffs(df_copy)
@@ -185,7 +194,63 @@ def emoji_remover(df: pd.DataFrame) -> pd.DataFrame:
     df_copy["message"] = df_copy["message"].apply(remove_emojis)
     return df_copy
 
-
+python_dev_abbreviations = {
+    "MNT": "Maintenance",
+    "MAINT": "Maintenance",
+    "WIP": "Work In Progress",
+    "POC": "Proof Of Concept",
+    "RFC": "Request For Comments",
+    "PR": "Pull Request",
+    "MR": "Merge Request",
+    "CI": "Continuous Integration",
+    "CD": "Continuous Deployment",
+    "QA": "Quality Assurance",
+    "LGTM": "Looks Good To Me",
+    "RTM": "Ready To Merge",
+    "PTAL": "Please Take A Look",
+    "BR": "Bug Report",
+    "CR": "Change Request",
+    "DOCS": "Documentation",
+    "TDD": "Test Driven Development",
+    "BDD": "Behavior Driven Development",
+    "OOP": "Object Oriented Programming",
+    "FP": "Functional Programming",
+    "UAT": "User Acceptance Testing",
+    "API": "Application Programming Interface",
+    "JWT": "JSON Web Token",
+    "MVP": "Minimum Viable Product",
+    "KISS": "Keep It Simple, Stupid",
+    "DRY": "Don't Repeat Yourself",
+    "YAGNI": "You Ain't Gonna Need It",
+    "PEP": "Python Enhancement Proposal",
+    "Ref": "Refactoring",
+    "Init": "Initialization or Initial Commit",
+    "GUI": "Graphical User Interface",
+    "CLI": "Command Line Interface",
+    "dep": "Dependencies",
+    "cfg": "Configuration",
+    "async": "Asynchronous",
+    "await": "Asynchronous Wait",
+    "IO": "Input/Output",
+    "ex": "Exception",
+    "func": "Function",
+    "lib": "Library",
+    "mod": "Module",
+    "pkg": "Package",
+    "gc": "Garbage Collector",
+    "C-API": "Python C Application Programming Interface",
+    "PR":"Pull Request",
+    "BLD":"Build",
+    "REL":"Release",
+    "ENH":"Enhancement",
+    "pdf":"Portable Document Format",
+    "epub":"Electronic Publication",
+    "csv":"Comma-Separated Values",
+    "ASV":"Airspeed Velocity",
+    "SVG":"Scalable Vector Graphics",
+    "TST":"Test"
+}
+# DO not run
 def replace_abbreviations(text):
     words = text.split()
     replaced_words = [python_dev_abbreviations.get(word.upper(), word) for word in words]
@@ -196,8 +261,41 @@ def replace_abbreviations_in_dataframe(df: pd.DataFrame) -> pd.DataFrame:
     df_copy['message'] = df_copy['message'].apply(replace_abbreviations)
     return df_copy
 
+def full_message_preprocessor(df: pd.DataFrame) -> pd.DataFrame:
+    df_copy = df.copy()
+    df_copy = emoji_remover(df_copy)
+    df_copy = replace_abbreviations_in_dataframe(df_copy)
+    return df_copy
+
+
+
+def process_files_in_directory(directory_path: str, output_file: str):
+    # List to accumulate data from all JSONs
+    all_data = []
+
+    # Iterate over every file in the directory
+    for file_name in os.listdir(directory_path):
+        if file_name.endswith(".json"):
+            # Construct full path to the file
+            full_path = os.path.join(directory_path, file_name)
+
+            # Convert the JSON to a DataFrame
+            df = pd.read_json(full_path)
+
+            # Check for NaN values in the "diff" column and print the entire row
+
+            # Apply the preprocessing function
+            processed_df = full_diff_preprocessor(df)
+            processed_df = full_message_preprocessor(processed_df)
+
+            # Append data to our all_data list
+            all_data.append(processed_df)
+
+    # Concatenate all data into a single DataFrame
+    final_df = pd.concat(all_data, ignore_index=True)
+    final_df.to_json(output_file)
 
 
 
 if __name__ == "__main__":
-    pass
+    process_files_in_directory()
