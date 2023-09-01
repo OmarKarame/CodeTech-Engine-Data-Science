@@ -1,13 +1,11 @@
 from transformers import AutoTokenizer
 from transformer import MODEL_CHECKPOINT
 
-new_tokens_list = []
+new_tokens_list = ["{", "}", "{ }"]
 
-def updated_tokenizer(*args):
+def updated_tokenizer(list_of_new_tokens):
     """Instantiate new tokenizer updated with data fed"""
-    basic_tokenizer = AutoTokenizer.from_pretrained(MODEL_CHECKPOINT)
-    new_tokenizer = basic_tokenizer.add_tokens(args)
+    tokenizer = AutoTokenizer.from_pretrained(MODEL_CHECKPOINT)
+    tokenizer.add_tokens(list_of_new_tokens)
 
-    return new_tokenizer
-
-updated_tokenizer(new_tokens_list)
+    return tokenizer
