@@ -16,6 +16,8 @@ model_type = AutoModelForSeq2SeqLM
 # Data location, feature and target names
 feature = "diff"
 target = "message"
+
+# location of data, please replace it with yuor own one
 data_source = "/home/tomasz/code/OmarKarame/Commit-To-Excellence-Backend/Notebooks/test_output.json"
 #"/home/tomasz/code/OmarKarame/Commit-To-Excellence-Backend/cte/tomasz_test/data2.csv"
 
@@ -122,13 +124,13 @@ def create_data_collator():
 
 # Load metric with evaluation function to determine the model performance
 
-rouge = evaluate.load("rouge")
+
 
 
 def compute_metrics(eval_pred):
     """Takes a tuple of predictions and reference labels as input,
     and outputs a dictionary of metrics computed over the inputs."""
-
+    rouge = evaluate.load("rouge")
     predictions, labels = eval_pred
     decoded_preds = tokenizer.batch_decode(predictions, skip_special_tokens=True)
     labels = np.where(labels != -100, labels, tokenizer.pad_token_id)
@@ -166,12 +168,12 @@ def create_trainer(model, args, tokenized_datasets, data_collator, tokenizer):
 
 # Save model
 def save_trained_model():
-    trainer.save_model("../../saved_models/t5-small-cte")
+    trainer.save_model("saved_models/t5-small-cte")
 
 
 # Load trained model
 def load_trained_model():
-    loaded_model = AutoModelForSeq2SeqLM.from_pretrained("../../saved_models/t5-small-cte")
+    loaded_model = AutoModelForSeq2SeqLM.from_pretrained("saved_models/t5-small-cte")
     return loaded_model
 
 
@@ -192,22 +194,31 @@ def generate_commit_message(diff, model, tokenizer):
 
 
 data = get_data(data_source)
+print("Data loaded")
 data_set = split_data(data, 0.2, 0.2)
+print("data split into train,validation and test")
 #tokenizer = create_basic_tokenizer()
-tokenizer = updated_tokenizer(new_tokens_list)
+tokenizer = updated_tokenizer(new_tokens_list, MODEL_CHECKPOINT)
+print("tokenizer created")
 tokenized_datasets = data_set.map(preprocess_data, batched=True)
+print("Data tokenized")
 args = create_model_arguments(batch_size, weight_decay, num_of_epochs)
+print("arguments for training created")
 data_collator = create_data_collator()
+print("data collator created")
 model = create_t5_model()
+print("T5 model created")
 trainer = create_trainer(model, args, tokenized_datasets, data_collator, tokenizer)
+print("training model created")
 
 #Train model
 trainer.train()
-
+print("model trained")
 save_trained_model()
-
+print("model saved at saved_models/t5-small-cte")
 trained_model = load_trained_model()
-prediction_text = "Tap into this collection of KS2 writing examples to support your teaching on writing all types of texts. Writing examplars are model texts of what KS2 children should be aiming to achieve. All of our KS2 writing exemplars include a breakdown of what's included, how text should be formatted and why it's important. In each resource, we've also added a detailed PowerPoint on the topic, word mats, exemplification checklist, genre features checklist and of course a brilliant example of a specific type of writing. Model texts are great resources for helping children to understand how their work is marked, and what they should strive towards completing. This helps towards providing writing inspiration and confidence, alongside aiding children to proof-read their own work and select areas for improvement. You can choose to go through these KS2 writing exemplars together or individually. All of our model texts provide detailed notes to follow to help guide children with their own work. You could also provide an exemplar to your children while they're undergoing their own writing activity to help guide their work to show your class the correct formatting. This will help your KS2 children to memorise a writing structure for their work. Dyslexia-friendly options are also included within this collection of resources. "
+print("model loaded from saved_models/t5-small-cte")
+#prediction_text = "Tap into this collection of KS2 writing examples to support your teaching on writing all types of texts. Writing examplars are model texts of what KS2 children should be aiming to achieve. All of our KS2 writing exemplars include a breakdown of what's included, how text should be formatted and why it's important. In each resource, we've also added a detailed PowerPoint on the topic, word mats, exemplification checklist, genre features checklist and of course a brilliant example of a specific type of writing. Model texts are great resources for helping children to understand how their work is marked, and what they should strive towards completing. This helps towards providing writing inspiration and confidence, alongside aiding children to proof-read their own work and select areas for improvement. You can choose to go through these KS2 writing exemplars together or individually. All of our model texts provide detailed notes to follow to help guide children with their own work. You could also provide an exemplar to your children while they're undergoing their own writing activity to help guide their work to show your class the correct formatting. This will help your KS2 children to memorise a writing structure for their work. Dyslexia-friendly options are also included within this collection of resources. "
 
 comment = generate_commit_message(data_set["test"]["diff"][0], trained_model, tokenizer)
 
