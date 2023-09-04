@@ -4,7 +4,11 @@ import numpy as np
 import pandas as pd
 from datasets import Dataset, DatasetDict
 import evaluate
-from tokenizer import new_tokens_list, updated_tokenizer, special_tokens_dict
+from cte.ml_logic.tokenizer import new_tokens_list, updated_tokenizer, special_tokens_dict
+import os
+
+
+cwd = os.getcwd()
 
 
 
@@ -18,7 +22,7 @@ feature = "diff"
 target = "message"
 
 # location of data, please replace it with yuor own one
-data_source = "/home/tomasz/code/OmarKarame/Commit-To-Excellence-Backend/Notebooks/test_output.json"
+data_source = cwd +"/training_data/test_output.json"
 #"/home/tomasz/code/OmarKarame/Commit-To-Excellence-Backend/cte/tomasz_test/data2.csv"
 
 
@@ -36,7 +40,7 @@ num_of_epochs = 3
 
 # Model Saving parameters
 model_name = "cte_model"
-model_dir = f"../../saved_models/{model_name}"
+model_dir = cwd + f"saved_models/{model_name}"
 
 # Testing
 GIT_DIFF = "random diff that is going to be used to generate comment when committed"
@@ -47,7 +51,7 @@ def get_data(url):
     df = pd.read_json(url)
     df = df.drop(columns=["sha"]).dropna()
     # df = df[df[feature].str.len() < 5000]
-    #df = df.iloc[0: 1000]
+    df = df.iloc[0: 1000]
     data = Dataset.from_pandas(df, preserve_index=False)
     return data
 
