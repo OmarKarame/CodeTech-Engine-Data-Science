@@ -4,12 +4,12 @@ import numpy as np
 import pandas as pd
 from datasets import Dataset, DatasetDict
 import evaluate
-from tokenizer import new_tokens_list, updated_tokenizer
+from tokenizer import new_tokens_list, updated_tokenizer, special_tokens_dict
 
 
 
 # Model types and sizes
-model_checkpoints = ["t5-small", "t5-base", "t5-large", "t5-3b", "t5-11b"]
+model_checkpoints = ["t5-small", "t5-base", "t5-large", "t5-3b", "t5-11b", "google/flan-t5-small"]
 MODEL_CHECKPOINT = model_checkpoints[0]
 model_type = AutoModelForSeq2SeqLM
 
@@ -46,7 +46,8 @@ GIT_DIFF = "random diff that is going to be used to generate comment when commit
 def get_data(url):
     df = pd.read_json(url)
     df = df.drop(columns=["sha"]).dropna()
-    df = df[df[feature].str.len() < 5000]
+    # df = df[df[feature].str.len() < 5000]
+    #df = df.iloc[0: 1000]
     data = Dataset.from_pandas(df, preserve_index=False)
     return data
 
@@ -146,8 +147,10 @@ def compute_metrics(eval_pred):
 
 
 # create T5 model
-def create_t5_model():
+def create_t5_model(tokenizer):
     model = AutoModelForSeq2SeqLM.from_pretrained(MODEL_CHECKPOINT)
+
+    model.resize_token_embeddings(len(tokenizer))
     return model
 
 
@@ -192,38 +195,40 @@ def generate_commit_message(diff, model, tokenizer):
     return decoder_output
 
 
+if __name__ == '__main__':
+    data = get_data(data_source)
+    print("Data loaded")
+    data_set = split_data(data, 0.2, 0.2)
+    print("data split into train,validation and test")
+    #tokenizer = create_basic_tokenizer()
+    tokenizer = updated_tokenizer(new_tokens_list, special_tokens_dict, MODEL_CHECKPOINT)
+    print("tokenizer created")
+    tokenized_datasets = data_set.map(preprocess_data, batched=True)
+    print("Data tokenized")
+    args = create_model_arguments(batch_size, weight_decay, num_of_epochs)
+    print("arguments for training created")
+    data_collator = create_data_collator()
+    print("data collator created")
+    model = create_t5_model(tokenizer)
+    print("T5 model created")
+    trainer = create_trainer(model, args, tokenized_datasets, data_collator, tokenizer)
+    print("training model created")
 
-data = get_data(data_source)
-print("Data loaded")
-data_set = split_data(data, 0.2, 0.2)
-print("data split into train,validation and test")
-#tokenizer = create_basic_tokenizer()
-tokenizer = updated_tokenizer(new_tokens_list, MODEL_CHECKPOINT)
-print("tokenizer created")
-tokenized_datasets = data_set.map(preprocess_data, batched=True)
-print("Data tokenized")
-args = create_model_arguments(batch_size, weight_decay, num_of_epochs)
-print("arguments for training created")
-data_collator = create_data_collator()
-print("data collator created")
-model = create_t5_model()
-print("T5 model created")
-trainer = create_trainer(model, args, tokenized_datasets, data_collator, tokenizer)
-print("training model created")
+    #Train model
+    trainer.train()
+    print("model trained")
+    save_trained_model()
+    print("model saved at saved_models/t5-small-cte")
+    trained_model = load_trained_model()
+    print("model loaded from saved_models/t5-small-cte")
+    #prediction_text = "Tap into this collection of KS2 writing examples to support your teaching on writing all types of texts. Writing examplars are model texts of what KS2 children should be aiming to achieve. All of our KS2 writing exemplars include a breakdown of what's included, how text should be formatted and why it's important. In each resource, we've also added a detailed PowerPoint on the topic, word mats, exemplification checklist, genre features checklist and of course a brilliant example of a specific type of writing. Model texts are great resources for helping children to understand how their work is marked, and what they should strive towards completing. This helps towards providing writing inspiration and confidence, alongside aiding children to proof-read their own work and select areas for improvement. You can choose to go through these KS2 writing exemplars together or individually. All of our model texts provide detailed notes to follow to help guide children with their own work. You could also provide an exemplar to your children while they're undergoing their own writing activity to help guide their work to show your class the correct formatting. This will help your KS2 children to memorise a writing structure for their work. Dyslexia-friendly options are also included within this collection of resources. "
 
-#Train model
-trainer.train()
-print("model trained")
-save_trained_model()
-print("model saved at saved_models/t5-small-cte")
-trained_model = load_trained_model()
-print("model loaded from saved_models/t5-small-cte")
-#prediction_text = "Tap into this collection of KS2 writing examples to support your teaching on writing all types of texts. Writing examplars are model texts of what KS2 children should be aiming to achieve. All of our KS2 writing exemplars include a breakdown of what's included, how text should be formatted and why it's important. In each resource, we've also added a detailed PowerPoint on the topic, word mats, exemplification checklist, genre features checklist and of course a brilliant example of a specific type of writing. Model texts are great resources for helping children to understand how their work is marked, and what they should strive towards completing. This helps towards providing writing inspiration and confidence, alongside aiding children to proof-read their own work and select areas for improvement. You can choose to go through these KS2 writing exemplars together or individually. All of our model texts provide detailed notes to follow to help guide children with their own work. You could also provide an exemplar to your children while they're undergoing their own writing activity to help guide their work to show your class the correct formatting. This will help your KS2 children to memorise a writing structure for their work. Dyslexia-friendly options are also included within this collection of resources. "
+    comment = generate_commit_message(data_set["test"]["diff"][0], trained_model, tokenizer)
 
-comment = generate_commit_message(data_set["test"]["diff"][0], trained_model, tokenizer)
-
-model1 = create_t5_model()
-basic_comment = generate_commit_message(data_set["test"]["diff"][0], model1, tokenizer)
-print(comment)
-print(f"\n")
-print(basic_comment)
+    model1 = create_t5_model(tokenizer)
+    basic_comment = generate_commit_message(data_set["test"]["diff"][0], model1, tokenizer)
+    print("predicted comment")
+    print(comment)
+    print(f"\n")
+    print("predicted basic comment")
+    print(basic_comment)
