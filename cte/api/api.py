@@ -1,4 +1,5 @@
 from fastapi import FastAPI
+from cte.ml_logic.load_model_and_generate import predict_message
 #import model
 app = FastAPI()
 
@@ -8,4 +9,5 @@ def home():
 
 @app.get("/predict")
 def predict(git_diff):
-    return {"prediction" : "temp"}
+    prediction = predict_message(git_diff)
+    return {"prediction" : prediction}
