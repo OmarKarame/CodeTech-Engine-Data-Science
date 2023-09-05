@@ -9,7 +9,7 @@ from tokenizer import new_tokens_list, updated_tokenizer, special_tokens_dict
 
 
 # Model types and sizes
-model_checkpoints = ["t5-small", "t5-base", "t5-large", "t5-3b", "t5-11b", "google/flan-t5-small"]
+model_checkpoints = ["t5-small", "t5-base", "t5-large", "t5-3b", "t5-11b", "google/flan-t5-small", "google/flan-t5-large"]
 MODEL_CHECKPOINT = model_checkpoints[0]
 model_type = AutoModelForSeq2SeqLM
 
@@ -18,7 +18,7 @@ feature = "diff"
 target = "message"
 
 # location of data, please replace it with yuor own one
-data_source = "/home/tomasz/code/OmarKarame/Commit-To-Excellence-Backend/Notebooks/test_output.json"
+data_source = "test_data/test_output.json"
 #"/home/tomasz/code/OmarKarame/Commit-To-Excellence-Backend/cte/tomasz_test/data2.csv"
 
 
@@ -36,26 +36,27 @@ num_of_epochs = 3
 
 # Model Saving parameters
 model_name = "cte_model"
-model_dir = f"../../saved_models/{model_name}"
+model_dir = f"saved_models/{model_name}"
 
-# Testing
-GIT_DIFF = "random diff that is going to be used to generate comment when committed"
 
 
 # Read data
 def get_data(url):
+    """Load data and create data set from selected json file"""
+
     df = pd.read_json(url)
     df = df.drop(columns=["sha"]).dropna()
     # df = df[df[feature].str.len() < 5000]
-    #df = df.iloc[0: 1000]
+    df = df.iloc[0: 1000]
     data = Dataset.from_pandas(df, preserve_index=False)
+    print("\u2713 data uploaded")
     return data
 
 
-# Create dataset objects
-
+# Split data into train, validation and testing
 def split_data(data, validation_size, test_size):
-    # Split data into train, validation and testing
+    """Split data into train, validation and testing. Returns dataset"""
+
     data_train_test = data.train_test_split(test_size=int(len(data)*test_size))
     data_train_val = data_train_test["train"].train_test_split(test_size=int(len(data)*validation_size))
 
@@ -64,36 +65,32 @@ def split_data(data, validation_size, test_size):
         "train": data_train_val["train"],
         "validation": data_train_val["test"],
         "test": data_train_test["test"]})
-
+    print("\u2713 data divided into train, validation and test")
     return ds
 
 
 # Instantiate Tokenizer
 def create_basic_tokenizer():
+    """Instantiate tokenizer"""
+
     tokenizer = AutoTokenizer.from_pretrained(MODEL_CHECKPOINT)
+    print("\u2713 created basic tokenizer")
     return tokenizer
 
 
-
-
 def preprocess_data(examples):
-    # Process + tokenize features
+    """Tokenizes features and target"""
+
     inputs = [prefix + doc for doc in examples[feature]]
     model_inputs = tokenizer(inputs, max_length=max_feature_length, truncation=True)
-
-    print(type(model_inputs))
-
-    # tokenize targets
     labels = tokenizer(examples[target], max_length=max_target_length, truncation=True)
-
     model_inputs["labels"] = labels["input_ids"]
-
+    print("\u2713 Data tokenized")
     return model_inputs
 
 
 def create_model_arguments(batch_size, weight_decay, num_of_epochs):
-
-
+    """Creates arguments needed to train the model"""
 
     args = Seq2SeqTrainingArguments(
         model_dir,
@@ -115,19 +112,19 @@ def create_model_arguments(batch_size, weight_decay, num_of_epochs):
         load_best_model_at_end=True,
         metric_for_best_model="rouge1"
     )
-
+    print("\u2713 arguments for training created")
     return args
+
 
 #Create data collator
 def create_data_collator():
+    """Creates data collator needed to train the model"""
     data_collator = DataCollatorForSeq2Seq(tokenizer=tokenizer)
+    print("\u2713 data collator created")
     return data_collator
 
+
 # Load metric with evaluation function to determine the model performance
-
-
-
-
 def compute_metrics(eval_pred):
     """Takes a tuple of predictions and reference labels as input,
     and outputs a dictionary of metrics computed over the inputs."""
@@ -136,26 +133,26 @@ def compute_metrics(eval_pred):
     decoded_preds = tokenizer.batch_decode(predictions, skip_special_tokens=True)
     labels = np.where(labels != -100, labels, tokenizer.pad_token_id)
     decoded_labels = tokenizer.batch_decode(labels, skip_special_tokens=True)
-
     result = rouge.compute(predictions=decoded_preds, references=decoded_labels, use_stemmer=True)
-
     prediction_lens = [np.count_nonzero(pred != tokenizer.pad_token_id) for pred in predictions]
     result["gen_len"] = np.mean(prediction_lens)
-
+    print("\u2713 metric created")
     return {k: round(v, 4) for k, v in result.items()}
-
 
 
 # create T5 model
 def create_t5_model(tokenizer):
+    """Instantiates T5 model"""
     model = AutoModelForSeq2SeqLM.from_pretrained(MODEL_CHECKPOINT)
-
     model.resize_token_embeddings(len(tokenizer))
+    #pad_to_multiple_of=int((len(tokenizer)/16+1))*16
+    print("\u2713 T5 model created")
     return model
 
 
 # Create trainer model
 def create_trainer(model, args, tokenized_datasets, data_collator, tokenizer):
+    """Creates trainer by combinining model, arguments, tokenizer, data and data collator"""
     trainer = Seq2SeqTrainer(
         model,
         args,
@@ -164,31 +161,29 @@ def create_trainer(model, args, tokenized_datasets, data_collator, tokenizer):
         data_collator=data_collator,
         tokenizer=tokenizer,
         compute_metrics=compute_metrics)
+    print("\u2713 training model created")
     return trainer
-
-
 
 
 # Save model
 def save_trained_model():
-    trainer.save_model("saved_models/t5-small-cte")
+    path = "saved_models/t5-small"
+    trainer.save_model(path)
+    print(f"\u2713 model saved at {path}")
 
 
 # Load trained model
 def load_trained_model():
-    loaded_model = AutoModelForSeq2SeqLM.from_pretrained("saved_models/t5-small-cte")
+    path = "saved_models/t5-small"
+    loaded_model = AutoModelForSeq2SeqLM.from_pretrained(path)
+    # ignore_mismatched_sizes=True
+    print(f"\u2713 model loaded from {path}")
     return loaded_model
 
 
-
-
 # Generate commit message
-
 def generate_commit_message(diff, model, tokenizer):
     input = ["summarize: " + diff]
-
-    #pred_text = "@staticmethod\n def __check_dictionary(word):\n '''Check if word exists in English dictionary'''\n response = requests.get(f'https://wagon-dictionary.herokuapp.com/{word}')\n json_response = response.json()\n        return json_response[\"found\"]"
-
     inputs = tokenizer(input, max_length=max_feature_length, truncation=True, return_tensors="pt")
     output = model.generate(**inputs, num_beams=8, do_sample=True, min_length=10, max_length=64)
     decoder_output = tokenizer.batch_decode(output, skip_special_tokens=True)[0]
@@ -196,36 +191,36 @@ def generate_commit_message(diff, model, tokenizer):
 
 
 if __name__ == '__main__':
+    #Runt the model file from top to bottom, uploads data, split it,
+    # create training model, train it, save it, load it and predict commit meesage
     data = get_data(data_source)
-    print("Data loaded")
+
     data_set = split_data(data, 0.2, 0.2)
-    print("data split into train,validation and test")
     #tokenizer = create_basic_tokenizer()
     tokenizer = updated_tokenizer(new_tokens_list, special_tokens_dict, MODEL_CHECKPOINT)
-    print("tokenizer created")
-    tokenized_datasets = data_set.map(preprocess_data, batched=True)
-    print("Data tokenized")
-    args = create_model_arguments(batch_size, weight_decay, num_of_epochs)
-    print("arguments for training created")
-    data_collator = create_data_collator()
-    print("data collator created")
-    model = create_t5_model(tokenizer)
-    print("T5 model created")
-    trainer = create_trainer(model, args, tokenized_datasets, data_collator, tokenizer)
-    print("training model created")
 
-    #Train model
+    tokenized_datasets = data_set.map(preprocess_data, batched=True)
+
+    args = create_model_arguments(batch_size, weight_decay, num_of_epochs)
+
+    data_collator = create_data_collator()
+
+    model = create_t5_model(tokenizer)
+
+    trainer = create_trainer(model, args, tokenized_datasets, data_collator, tokenizer)
+
+    #Trains the model
     trainer.train()
-    print("model trained")
+    print("\u2713 model trained")
+
     save_trained_model()
-    print("model saved at saved_models/t5-small-cte")
+
     trained_model = load_trained_model()
-    print("model loaded from saved_models/t5-small-cte")
-    #prediction_text = "Tap into this collection of KS2 writing examples to support your teaching on writing all types of texts. Writing examplars are model texts of what KS2 children should be aiming to achieve. All of our KS2 writing exemplars include a breakdown of what's included, how text should be formatted and why it's important. In each resource, we've also added a detailed PowerPoint on the topic, word mats, exemplification checklist, genre features checklist and of course a brilliant example of a specific type of writing. Model texts are great resources for helping children to understand how their work is marked, and what they should strive towards completing. This helps towards providing writing inspiration and confidence, alongside aiding children to proof-read their own work and select areas for improvement. You can choose to go through these KS2 writing exemplars together or individually. All of our model texts provide detailed notes to follow to help guide children with their own work. You could also provide an exemplar to your children while they're undergoing their own writing activity to help guide their work to show your class the correct formatting. This will help your KS2 children to memorise a writing structure for their work. Dyslexia-friendly options are also included within this collection of resources. "
 
     comment = generate_commit_message(data_set["test"]["diff"][0], trained_model, tokenizer)
 
     model1 = create_t5_model(tokenizer)
+
     basic_comment = generate_commit_message(data_set["test"]["diff"][0], model1, tokenizer)
     print("predicted comment")
     print(comment)
