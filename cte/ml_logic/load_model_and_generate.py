@@ -17,7 +17,7 @@ def load_data(data_source):
 
     return df
 
-if __name__ == '__main__':
+def generate_prediction():
     choice = int(input("Pick data point:"))
     model = AutoModelForSeq2SeqLM.from_pretrained(cwd +"/saved_models/t5-small-cte")
     tokenizer1 = AutoTokenizer.from_pretrained(cwd + "/saved_models/t5-small-cte")
@@ -62,3 +62,5 @@ def predict_message(diff):
     comment = generate_commit_message(diff, model, tokenizer1)
 
     return comment
+if __name__ == '__main__':
+    generate_prediction()
