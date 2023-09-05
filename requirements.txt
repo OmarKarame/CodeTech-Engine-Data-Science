@@ -21,14 +21,6 @@ jupyterlab
 notebook
 python-dotenv
 
-<<<<<<< HEAD
-#for T5 model
-transformers
-rouge_score
-transformers[torch]
-evaluate
-datasets
-=======
 # model requirements
 transformers
 click
@@ -37,7 +29,6 @@ datasets
 evaluate
 transformers[torch]
 rouge_score
->>>>>>> 4ae6106b2558e4f3d729c41f5f963ccbd7b58c34
 
 # Trick to install the version of Tensorflow depending on your processor: darwin == Mac, ARM == M1
 tensorflow-macos==2.10.0; sys_platform == 'darwin' and 'ARM' in platform_version # Mac M-chips
