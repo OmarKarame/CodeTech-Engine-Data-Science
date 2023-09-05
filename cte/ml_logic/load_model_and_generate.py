@@ -12,36 +12,36 @@ def load_data(data_source):
     print(f'loaded frame of shape {df.shape}')
 
     return df
+#def generate_commit_message():
+choice = int(input("Pick data point:"))
+model = AutoModelForSeq2SeqLM.from_pretrained("saved_models/t5-small")
+tokenizer1 = AutoTokenizer.from_pretrained("saved_models/t5-small")
+model.resize_token_embeddings(len(tokenizer1))
 
-def generate_prediction():
-    choice = int(input("Pick data point:"))
-    model = AutoModelForSeq2SeqLM.from_pretrained("saved_models/t5-small-cte")
-    tokenizer1 = AutoTokenizer.from_pretrained("saved_models/t5-small-cte")
-    model.resize_token_embeddings(len(tokenizer1))
 
+print("model loaded")
+basic_model = create_t5_model(tokenizer1)
+print("basic model loaded")
 
-    print("model loaded")
-    basic_model = create_t5_model(tokenizer1)
-    print("basic model loaded")
+data = load_data(data_source)
+print("data loaded)")
 
-    data = load_data(data_source)
-    print("data loaded)")
-
-    comment = generate_commit_message(data["diff"][choice], model, tokenizer1)
+comment = generate_commit_message(data["diff"][choice], model, tokenizer1)
     #print(f"type of the comment: {type(comment)}")
-    print("predicted comment")
-    print(comment)
-    print(f"\n")
+print("Commit message predicted by trained T5 model:")
+print(comment)
+print(f"\n")
 
 
 
-    basic_comment = generate_commit_message(data["diff"][choice], basic_model, tokenizer1)
-    print("predicted basic comment")
-    print(basic_comment)
-    print(f"\n")
+basic_comment = generate_commit_message(data["diff"][choice], basic_model, tokenizer1)
+print("Commit message predicted by untrained model:")
+print(basic_comment)
+print(f"\n")
 
-    print("actual comment")
-    print(data["message"][choice])
+print("Actual commit message:")
+print(data["message"][choice])
+print(f"\n")
 
-if __name__ == '__main__':
-    generate_prediction()
+#if __name__ == '__main__':
+    #generate_commit_message()
