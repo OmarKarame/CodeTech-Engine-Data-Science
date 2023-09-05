@@ -1,7 +1,9 @@
 # Data files and folders
 raw_data/
+llama_base_model/
 ethan_stuff/
 cli_playground/
+saved_models/
 Commit-To-Excellence-Backend/cte/ethan's_stuff/GitHub API.ipynb
 # Byte-compiled / optimized / DLL files
 __pycache__/
