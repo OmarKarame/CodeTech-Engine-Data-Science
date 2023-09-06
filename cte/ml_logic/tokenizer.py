@@ -1,6 +1,6 @@
 from transformers import AutoTokenizer
 
-new_tokens_list = ["{", "}", "{ }", "\n", "\t", "as", "assert", "def", "for", "continue", "def", "del", "elif", "else", "False", "finally", "import", "lambda", "None", "nonlocal", "raise", "return", "True", "while", "yield"]
+new_tokens_list = ["{", "}", "{ }", ",", ".", "'", "\n", "\t", "as", "assert", "def", "for", "continue", "def", "del", "elif", "else", "False", "finally", "import", "lambda", "None", "nonlocal", "raise", "return", "True", "while", "yield"]
 special_tokens_dict = {"additional_special_tokens" : ["[sad]", "[ead]", "[ssb]", "[esb]", "[scn]", "[ecn]"]}
 
 # words already included in tokenizer: and, break, class, except, for, from, if, in, is, nor, or, pass, try, with

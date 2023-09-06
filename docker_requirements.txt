@@ -1,0 +1,22 @@
+wheel
+unidecode
+yapf
+pygeohash
+numpy==1.23.5
+pandas==1.5.3
+scipy==1.10.0
+# scikit-learn==1.2.1
+db-dtypes
+pyarrow
+python-dotenv
+
+# Deployment
+fastapi
+uvicorn
+
+# model requirements
+transformers
+datasets
+evaluate
+transformers[torch]
+rouge_score

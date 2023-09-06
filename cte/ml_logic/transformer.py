@@ -4,33 +4,10 @@ import numpy as np
 import pandas as pd
 from datasets import Dataset, DatasetDict
 import evaluate
-from tokenizer import new_tokens_list, updated_tokenizer, special_tokens_dict
+from cte.ml_logic.tokenizer import new_tokens_list, updated_tokenizer, special_tokens_dict
 
 
 
-# Model types and sizes
-model_checkpoints = ["t5-small", "t5-base", "t5-large", "t5-3b", "t5-11b", "google/flan-t5-small", "google/flan-t5-large"]
-MODEL_CHECKPOINT = model_checkpoints[0]
-model_type = AutoModelForSeq2SeqLM
-# Data location, feature and target names
-feature = "diff"
-target = "message"
-# location of data, please replace it with yuor own one
-data_source = "test_data/test_output.json"
-#"/home/tomasz/code/OmarKarame/Commit-To-Excellence-Backend/cte/tomasz_test/data2.csv"
-# Preprocess + Tokenizer Params
-max_feature_length = 256
-max_target_length = 128
-prefix = "summarize: "
-# Fine-Tuning Parameters
-batch_size = 8
-learning_rate = 4e-5
-#adam_beta1 = 0.9
-weight_decay = 0.01
-num_of_epochs = 3
-# Model Saving parameters
-model_name = "cte_model"
-model_dir = f"saved_models/{model_name}"
 
 
 
@@ -153,7 +130,7 @@ def create_trainer(model, args, tokenized_datasets, data_collator, tokenizer):
 
 # Save model
 def save_trained_model():
-    path = "saved_models/t5-small"
+    path = "saved_models/untrained_large_cte_model"
     trainer.save_model(path)
     print(f"\u2713 model saved at {path}")
 
@@ -168,7 +145,7 @@ def load_trained_model():
 
 
 # Generate commit message
-def generate_commit_message(diff, model, tokenizer):
+def generate_commit_message(diff, model, tokenizer, max_feature_length=256):
     input = ["summarize: " + diff]
     inputs = tokenizer(input, max_length=max_feature_length, truncation=True, return_tensors="pt")
     output = model.generate(**inputs, num_beams=8, do_sample=True, min_length=10, max_length=64)
@@ -177,6 +154,31 @@ def generate_commit_message(diff, model, tokenizer):
 
 
 if __name__ == '__main__':
+    # Model types and sizes
+    model_checkpoints = ["t5-small", "t5-base", "t5-large", "t5-3b", "t5-11b", "google/flan-t5-small", "google/flan-t5-large"]
+    MODEL_CHECKPOINT = model_checkpoints[-1]
+    model_type = AutoModelForSeq2SeqLM
+    # Data location, feature and target names
+    feature = "diff"
+    target = "message"
+    # location of data, please replace it with yuor own one
+    data_source = "test_data/test_output.json"
+    #"/home/tomasz/code/OmarKarame/Commit-To-Excellence-Backend/cte/tomasz_test/data2.csv"
+    # Preprocess + Tokenizer Params
+    max_feature_length = 256
+    max_target_length = 128
+    prefix = "summarize: "
+    # Fine-Tuning Parameters
+    batch_size = 8
+    learning_rate = 4e-5
+    #adam_beta1 = 0.9
+    weight_decay = 0.01
+    num_of_epochs = 3
+    # Model Saving parameters
+    model_name = "untrained_cte_model"
+    model_dir = f"saved_models/{model_name}"
+
+
     #Runt the model file from top to bottom, uploads data, split it,
     # create training model, train it, save it, load it and predict commit meesage
     data = get_data(data_source)
@@ -196,20 +198,21 @@ if __name__ == '__main__':
     trainer = create_trainer(model, args, tokenized_datasets, data_collator, tokenizer)
 
     #Trains the model
-    trainer.train()
+    # trainer.train()
     print("\u2713 model trained")
 
     save_trained_model()
 
-    trained_model = load_trained_model()
+    # trained_model = load_trained_model()
 
-    comment = generate_commit_message(data_set["test"]["diff"][0], trained_model, tokenizer)
+    # comment = generate_commit_message(data_set["test"]["diff"][0], trained_model, tokenizer)
 
-    model1 = create_t5_model(tokenizer)
+    # model1 = create_t5_model(tokenizer)
 
-    basic_comment = generate_commit_message(data_set["test"]["diff"][0], model1, tokenizer)
-    print("predicted comment")
-    print(comment)
-    print(f"\n")
-    print("predicted basic comment")
-    print(basic_comment)
+    # basic_comment = generate_commit_message(data_set["test"]["diff"][0], model1, tokenizer)
+    # print("predicted comment")
+    # print(comment)
+    # print(f"\n")
+    # print("predicted basic comment")
+    # print(basic_comment)
+    print('saved untrained model')
