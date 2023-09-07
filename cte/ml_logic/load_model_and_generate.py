@@ -10,8 +10,8 @@ def load_data(data_source):
     df = pd.read_json(data_source)
     df = df.drop(columns=["sha"]).dropna()
     print(f'loaded frame of shape {df.shape}')
-
     return df
+
 #def generate_commit_message():
 choice = int(input("Pick data point:"))
 model = AutoModelForSeq2SeqLM.from_pretrained("saved_models/t5-small")

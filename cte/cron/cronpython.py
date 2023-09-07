@@ -11,7 +11,7 @@ HEADERS = {
     'Authorization': f'token {TOKEN}',
     'Accept': 'application/vnd.github.v3.diff'
 }
-variables = pd.read_json(backend_directory + "/cte/cron/variables.csv")
+variables = pd.read_csv(backend_directory + "/cte/cron/variables.csv")
 
 # go through all repos provided in variables
 for repo in variables[variables["not_finished"]]["repo"]:
